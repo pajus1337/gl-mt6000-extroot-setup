@@ -15,9 +15,9 @@ show_partition_table() {
     local dev="$1"
     printf "\nCurrent partition table for ${C_BOLD}%s${C_RESET}:\n" "$dev"
     if cmd_exists lsblk; then
-        lsblk -o NAME,SIZE,FSTYPE,LABEL,UUID,MOUNTPOINT "$dev" 2>/dev/null || fdisk -l "$dev" 2>/dev/null
+        lsblk "$dev" 2>/dev/null || fdisk -l "$dev" 2>/dev/null || true
     else
-        fdisk -l "$dev" 2>/dev/null
+        fdisk -l "$dev" 2>/dev/null || true
     fi
     printf "\n"
 }

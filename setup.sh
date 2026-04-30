@@ -5,8 +5,6 @@
 # Run on a fresh GL.iNet or vanilla OpenWrt installation.
 # The script detects which phase it is in and continues automatically.
 
-set -e
-
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Load defaults first, then libraries
