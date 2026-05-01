@@ -60,8 +60,8 @@ ssh root@192.168.8.1
 opkg update && opkg install git-http
 
 # 4. Clone
-git clone https://github.com/pajus1337/gl-mt6000-setup-tool.git
-cd gl-mt6000-setup-tool
+git clone https://github.com/pajus1337/gl-mt6000-extroot-setup.git
+cd gl-mt6000-extroot-setup
 chmod +x setup.sh uninstall.sh
 
 # 5. Run Phase 1
@@ -69,7 +69,7 @@ chmod +x setup.sh uninstall.sh
 # → router reboots
 
 # 6. SSH back in — Phase 2 is detected automatically
-cd gl-mt6000-setup-tool
+cd gl-mt6000-extroot-setup
 ./setup.sh
 ```
 
@@ -84,7 +84,7 @@ cd gl-mt6000-setup-tool
 ## Script Structure
 
 ```
-gl-mt6000-setup-tool/
+gl-mt6000-extroot-setup/
 ├── setup.sh                   # Entry point — routes to Phase 1 or 2
 ├── uninstall.sh               # Reverses all changes
 ├── config/
