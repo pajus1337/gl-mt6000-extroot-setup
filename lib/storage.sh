@@ -89,6 +89,15 @@ setup_extroot() {
 
     log_info "UUID of ${part}: ${uuid}"
 
+    # Install USB wait preinit script into current overlay so it is included
+    # in the tar copy below and survives on both eMMC and extroot overlays.
+    local preinit_wait="${SCRIPT_DIR}/lib/79_wait_for_extroot"
+    if [ -f "$preinit_wait" ]; then
+        mkdir -p /lib/preinit
+        cp "$preinit_wait" /lib/preinit/79_wait_for_extroot
+        log_info "Preinit USB wait script installed."
+    fi
+
     # Mount partition temporarily to copy current overlay
     ensure_mountpoint "$TMP_EXTROOT_MOUNT"
     safe_umount "$TMP_EXTROOT_MOUNT"

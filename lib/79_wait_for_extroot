@@ -1,0 +1,22 @@
+#!/bin/sh
+# Wait for USB extroot device before mount_root runs.
+# Needed on GL-MT6000: USB controller enumerates after preinit starts,
+# causing mount_root to miss the extroot UUID and fall back to eMMC overlay.
+
+wait_for_extroot() {
+    # Only wait if extroot is configured in fstab
+    grep -q "target '/overlay'" /etc/config/fstab 2>/dev/null || return 0
+
+    local i=0
+    while [ $i -lt 15 ]; do
+        if [ -b /dev/sda1 ]; then
+            sleep 1   # Extra second for blkid to read UUID reliably
+            return 0
+        fi
+        sleep 1
+        i=$(( i + 1 ))
+    done
+    return 0  # Don't abort boot if USB never appears
+}
+
+boot_hook_add preinit_main wait_for_extroot
