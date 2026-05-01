@@ -25,7 +25,7 @@ show_partition_table() {
 # Check whether a partition table already exists on device.
 has_partition_table() {
     local dev="$1"
-    fdisk -l "$dev" 2>/dev/null | grep -qE "^${dev}[0-9]"
+    [ -b "${dev}1" ] || [ -b "${dev}2" ] || [ -b "${dev}3" ]
 }
 
 # Create a GPT layout: sda1 (extroot), sda2 (swap), sda3 (storage).
