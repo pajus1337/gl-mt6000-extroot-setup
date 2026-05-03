@@ -107,6 +107,28 @@ setup_extroot() {
     log_info "Copying current /overlay to ${part} (this may take a moment)..."
     run_cmd_verbose tar -C /overlay -cf - . | tar -C "$TMP_EXTROOT_MOUNT" -xf -
 
+    # block extroot checks that upper/etc/.extroot-uuid matches the UUID of the
+    # device currently mounted at /overlay (loop0 on GL.iNet, a partition elsewhere).
+    # Must NOT use sda1's own UUID — that's only for the fstab entry.
+    local overlay_src overlay_uuid
+    overlay_src=$(grep " /overlay " /proc/mounts | cut -d' ' -f1)
+    overlay_uuid=""
+    [ -n "$overlay_src" ] && overlay_uuid=$(blkid -s UUID -o value "$overlay_src" 2>/dev/null)
+
+    if [ -n "$overlay_uuid" ]; then
+        mkdir -p "${TMP_EXTROOT_MOUNT}/upper/etc"
+        printf "%s\n" "$overlay_uuid" > "${TMP_EXTROOT_MOUNT}/upper/etc/.extroot-uuid"
+        log_info "Overlay UUID (${overlay_uuid}) written to upper/etc/.extroot-uuid"
+    else
+        log_warn "Cannot determine overlay device UUID — upper/etc/.extroot-uuid not written."
+        log_warn "Extroot UUID validation may fail on some firmware."
+    fi
+
+    # Set overlay state to FS_PENDING (1) so mount_root activates extroot.
+    # tar-copying the current overlay copies .fs_state -> 2 (FS_DONE = active),
+    # which mount_extroot() skips. Must be 1 (FS_PENDING) to trigger activation.
+    ln -sf 1 "${TMP_EXTROOT_MOUNT}/.fs_state"
+
     # Write service config into overlay upper layer so Phase 2 can read it
     local state_dir="${TMP_EXTROOT_MOUNT}/upper/${GL_SETUP_STATE_DIR}"
     mkdir -p "$state_dir"

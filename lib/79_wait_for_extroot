@@ -4,13 +4,17 @@
 # causing mount_root to miss the extroot UUID and fall back to eMMC overlay.
 
 wait_for_extroot() {
-    # Only wait if extroot is configured in fstab
-    grep -q "target '/overlay'" /etc/config/fstab 2>/dev/null || return 0
-
+    # During preinit the ROM fstab is empty so we cannot check fstab here.
+    # Wait unconditionally for /dev/sda1; on GL-MT6000 USB enumerates ~4s into
+    # boot, well before mount_root at ~8s, so this normally exits in 1 iteration.
     local i=0
     while [ $i -lt 15 ]; do
         if [ -b /dev/sda1 ]; then
             sleep 1   # Extra second for blkid to read UUID reliably
+            # On GL-MT6000 dmesg shows ext4 loaded at ~8.25s but mount_root starts
+            # at ~7.96s — load ext4 now so extroot mount attempt doesn't fail with
+            # "unknown filesystem" before kmodloader runs inside mount_root.
+            modprobe ext4 2>/dev/null || insmod /lib/modules/*/ext4.ko 2>/dev/null || true
             return 0
         fi
         sleep 1
