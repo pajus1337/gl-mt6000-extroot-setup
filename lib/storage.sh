@@ -331,17 +331,12 @@ configure_transmission() {
     mkdir -p "$dl_dir"
 
     # Package install does not create /etc/config/transmission.
-    if [ ! -f /etc/config/transmission ]; then
-        cat > /etc/config/transmission <<EOF
+    # Always write — config is minimal and ours; named section required by init script.
+    cat > /etc/config/transmission <<EOF
 config transmission 'transmission'
 	option enabled 1
 	option download_dir '${dl_dir}'
 EOF
-        log_info "Created default /etc/config/transmission."
-    else
-        uci set transmission.@transmission[0].download_dir="$dl_dir"
-        uci commit transmission
-    fi
     log_ok "Transmission download dir → ${dl_dir}."
     /etc/init.d/transmission enable 2>/dev/null && /etc/init.d/transmission start 2>/dev/null || true
 }
