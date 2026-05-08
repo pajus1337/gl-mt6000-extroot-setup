@@ -81,9 +81,13 @@ is_storage_mounted() {
     mountpoint -q "${STORAGE_MOUNT_POINT}" 2>/dev/null
 }
 
-# Determine partition type as reported by blkid
+# Determine partition filesystem type.
 get_fs_type() {
-    blkid -s TYPE -o value "$1" 2>/dev/null
+    local dev="$1"
+    local fstype
+    fstype=$(block info "$dev" 2>/dev/null | grep -o 'TYPE="[^"]*"' | cut -d'"' -f2)
+    [ -n "$fstype" ] && printf "%s" "$fstype" && return 0
+    blkid -s TYPE -o value "$dev" 2>/dev/null
 }
 
 # Return partition size in MB from /sys

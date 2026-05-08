@@ -77,9 +77,14 @@ run_cmd_verbose() {
     return "$_ret"
 }
 
-# Fetch UUID of a block device (requires blkid)
+# Fetch UUID of a block device.
+# Uses OpenWrt's 'block info' (always available via block-mount) with
+# blkid as fallback for non-OpenWrt environments.
 get_uuid() {
     local dev="$1"
+    local uuid
+    uuid=$(block info "$dev" 2>/dev/null | grep -o 'UUID="[^"]*"' | cut -d'"' -f2)
+    [ -n "$uuid" ] && printf "%s" "$uuid" && return 0
     blkid -s UUID -o value "$dev" 2>/dev/null
 }
 
