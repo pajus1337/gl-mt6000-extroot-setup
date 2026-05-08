@@ -113,7 +113,7 @@ setup_extroot() {
     local overlay_src overlay_uuid
     overlay_src=$(grep " /overlay " /proc/mounts | cut -d' ' -f1)
     overlay_uuid=""
-    [ -n "$overlay_src" ] && overlay_uuid=$(blkid -s UUID -o value "$overlay_src" 2>/dev/null)
+    [ -n "$overlay_src" ] && overlay_uuid=$(get_uuid "$overlay_src")
 
     if [ -n "$overlay_uuid" ]; then
         mkdir -p "${TMP_EXTROOT_MOUNT}/upper/etc"
@@ -182,12 +182,12 @@ setup_swap() {
     fi
 
     local uuid
-    uuid=$(blkid -s UUID -o value "$part" 2>/dev/null)
+    uuid=$(get_uuid "$part")
 
     if [ -z "$uuid" ]; then
         log_warn "No UUID found for ${part} — creating swap signature."
         run_cmd mkswap -L "swap" "$part"
-        uuid=$(blkid -s UUID -o value "$part" 2>/dev/null)
+        uuid=$(get_uuid "$part")
         [ -n "$uuid" ] || die "Cannot get UUID for ${part} after mkswap."
     fi
 
