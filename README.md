@@ -60,8 +60,8 @@ in a two-phase, reboot-safe, idempotent flow.
 # 3. SSH in (default IP on vanilla OpenWrt)
 ssh root@192.168.1.1
 
-# 4. Install git
-apk update && apk add git
+# 4. Install git with HTTPS support
+apk update && apk add git git-http ca-bundle
 
 # 5. Clone
 git clone https://github.com/pajus1337/gl-mt6000-extroot-setup.git
