@@ -34,12 +34,17 @@ _uci_set_mount() {
     uci commit fstab
 }
 
-# Add or update a fstab swap entry.
-_uci_set_swap() {
-    local uuid="$1"
+# Add or update a fstab swap entry by device path.
+# BusyBox mkswap does not support -U (no UUID in header); block info skips swap
+# partitions. Using device path is reliable on GL-MT6000 where USB enumerates as sda.
+_uci_set_swap_by_dev() {
+    local dev="$1"
 
     local section
-    section=$(_fstab_section_by_uuid "$uuid")
+    section=$(uci show fstab 2>/dev/null \
+        | grep "device='${dev}'" \
+        | head -1 \
+        | cut -d. -f1-2)
 
     if [ -z "$section" ]; then
         uci add fstab swap > /dev/null
@@ -47,7 +52,7 @@ _uci_set_swap() {
     fi
 
     uci set "${section}.enabled=1"
-    uci set "${section}.uuid=${uuid}"
+    uci set "${section}.device=${dev}"
     uci commit fstab
 }
 
@@ -181,27 +186,14 @@ setup_swap() {
         return 0
     fi
 
-    local uuid
-    uuid=$(get_uuid "$part")
+    log_info "Writing swap header on ${part}..."
+    run_cmd mkswap -L "swap" "$part" || die "mkswap failed on ${part}."
 
-    if [ -z "$uuid" ]; then
-        # block info does not return UUID for swap partitions; run mkswap and
-        # extract the UUID directly from its output line (e.g. "UUID=xxxx-...").
-        log_info "Writing swap header on ${part}..."
-        local mkswap_out
-        mkswap_out=$(mkswap -L "swap" "$part" 2>&1)
-        printf "%s\n" "$mkswap_out" >> "$LOG_FILE"
-        uuid=$(printf "%s" "$mkswap_out" \
-            | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
-        [ -n "$uuid" ] || die "Cannot get UUID for ${part} after mkswap."
-    fi
-
-    log_info "UUID of ${part}: ${uuid}"
-    _uci_set_swap "$uuid"
+    _uci_set_swap_by_dev "$part"
 
     # Activate immediately (survives reboot via fstab)
     run_cmd swapon "$part" || log_warn "swapon failed — swap will activate after next reboot."
-    log_ok "Swap configured (UUID: ${uuid})."
+    log_ok "Swap configured on ${part}."
 }
 
 # ── Storage mount ──────────────────────────────────────────────────────────────

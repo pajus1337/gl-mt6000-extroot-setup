@@ -19,11 +19,20 @@ run_phase1() {
     # present for /dev/sda to appear during detection in Step 2.
     if ! grep -q "^usb_storage " /proc/modules 2>/dev/null; then
         if ! modprobe usb-storage 2>/dev/null; then
-            log_info "usb-storage module not loaded - installing kmod-usb-storage..."
+            log_info "Installing kmod-usb-storage..."
             apk add kmod-usb-storage >> "$LOG_FILE" 2>&1 || true
-            modprobe usb-storage 2>/dev/null || true
+            modprobe usb-storage 2>/dev/null || log_warn "Could not load usb-storage module."
         fi
-        sleep 2
+        # Wait for SCSI layer to create the block device (up to 10 s)
+        local _i=0
+        printf "[INFO]  Waiting for USB block device..."
+        while [ $_i -lt 10 ]; do
+            ls /sys/block/sd* /sys/block/vd* > /dev/null 2>&1 && break
+            printf "."
+            sleep 1
+            _i=$(( _i + 1 ))
+        done
+        printf "\n"
     fi
 
     # ── 2. USB device selection ────────────────────────────────────────────────
