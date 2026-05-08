@@ -18,7 +18,7 @@ EXTRA_BASE_PACKAGES="tune2fs lsblk"   # best-effort; non-fatal if missing
 # Optional service package lists
 PKG_SAMBA="luci-app-samba4 samba4-server"
 PKG_DOCKER="docker dockerd docker-compose luci-app-dockerman"
-PKG_PORTAINER=""           # installed via Docker image, not opkg
+PKG_PORTAINER=""           # installed via Docker image, not apk
 PKG_ADGUARD="adguardhome"
 PKG_TRANSMISSION="transmission-daemon luci-app-transmission"
 PKG_WIREGUARD="kmod-wireguard wireguard-tools luci-app-wireguard"

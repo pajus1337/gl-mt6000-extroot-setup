@@ -61,7 +61,7 @@ in a two-phase, reboot-safe, idempotent flow.
 ssh root@192.168.1.1
 
 # 4. Install git
-opkg update && opkg install git git-http
+apk update && apk add git
 
 # 5. Clone
 git clone https://github.com/pajus1337/gl-mt6000-extroot-setup.git
@@ -98,7 +98,7 @@ gl-mt6000-extroot-setup/
 │   ├── detect.sh              # OpenWrt version & hardware detection
 │   ├── ui.sh                  # Interactive prompts and menus
 │   ├── partition.sh           # Partition check, format, GPT creation
-│   ├── packages.sh            # opkg wrapper
+│   ├── packages.sh            # apk wrapper (pkg_install, pkg_update)
 │   ├── storage.sh             # Extroot, swap, storage, service config
 │   └── 79_wait_for_extroot    # Preinit hook: waits for USB before mount_root
 └── phases/

@@ -64,7 +64,7 @@ run_phase2() {
     if [ "$any_service" = "0" ]; then
         log_info "No optional services selected — skipping."
     else
-        opkg_update
+        pkg_update
         install_optional_services
 
         [ "$OPT_SAMBA"        = "1" ] && configure_samba
