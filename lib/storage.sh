@@ -333,7 +333,7 @@ configure_transmission() {
     # Package install does not create /etc/config/transmission.
     if [ ! -f /etc/config/transmission ]; then
         cat > /etc/config/transmission <<EOF
-config transmission
+config transmission 'transmission'
 	option enabled 1
 	option download_dir '${dl_dir}'
 EOF
