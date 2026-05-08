@@ -193,7 +193,14 @@ setup_swap() {
 
     # Activate immediately (survives reboot via fstab)
     run_cmd swapon "$part" || log_warn "swapon failed — swap will activate after next reboot."
-    log_ok "Swap configured on ${part}."
+
+    if is_swap_active "$part"; then
+        local swap_kb
+        swap_kb=$(grep "^${part}" /proc/swaps | awk '{print $3}')
+        log_ok "Swap active on ${part} (${swap_kb} kB)."
+    else
+        log_warn "Swap not active after swapon — will activate on next reboot via fstab."
+    fi
 }
 
 # ── Storage mount ──────────────────────────────────────────────────────────────
