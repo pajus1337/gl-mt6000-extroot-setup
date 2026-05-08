@@ -37,7 +37,7 @@ in a two-phase, reboot-safe, idempotent flow.
   Phase 2 (post-reboot) activates swap, storage, and services
 - **Idempotent** — safe to re-run; skips already-configured steps
 - **Partition wizard** — detects existing partitions, formats only if needed (with confirmation)
-- **UUID-based fstab** — reliable mounts configured via `uci`
+- **fstab via `uci`** — ext4 mounts by UUID; swap by device path (BusyBox `mkswap` has no `-U` flag)
 - **Docker data-root on storage** — images and volumes go to sda3, not extroot
 - **Optional services** (selected interactively in Phase 1, installed in Phase 2):
   - Samba (SMB/CIFS file sharing)
