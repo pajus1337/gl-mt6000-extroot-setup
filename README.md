@@ -1,37 +1,39 @@
 # GL-MT6000 Setup Tool
 
-Automated setup script for the **GL.iNet GL-MT6000 (Flint 2)** router.  
-Works on both **GL.iNet firmware** and **vanilla OpenWrt**.
+Automated setup script for the **GL-MT6000 (Flint 2)** running **vanilla OpenWrt 25.12.3+**.
 
-Automates extroot (USB overlay), swap, storage mounting, and optional services —  
+Automates extroot (USB overlay), swap, storage mounting, and optional services —
 in a two-phase, reboot-safe, idempotent flow.
 
 ---
 
-## Hardware
+## Requirements
 
-| Component  | Details |
-|------------|---------|
-| Router     | GL.iNet GL-MT6000 (Flint 2) — 1 GB RAM, 4-core CPU |
-| USB Drive  | Any USB 2.0/3.x drive, GPT-partitioned |
+| Requirement | Details |
+|-------------|---------|
+| Router      | GL.iNet GL-MT6000 (Flint 2) — 1 GB RAM, 4-core MediaTek MT7986 |
+| Firmware    | Vanilla OpenWrt 25.12.3 (r32912-6639b15f62) or newer |
+| USB Drive   | Any USB 2.0/3.x drive, GPT-partitioned (256 GB recommended) |
+
+> **GL.iNet stock firmware is not supported.**  
+> Flash vanilla OpenWrt first: [OpenWrt Table of Hardware — GL-MT6000](https://openwrt.org/toh/gl.inet/gl-mt6000)
 
 ### Recommended Partition Layout (GPT)
 
 | Partition | Size      | Filesystem | Purpose |
-|-----------|-----------|-----------|---------|
-| sda1      | 20 GB     | ext4      | extroot (`/overlay`) |
-| sda2      | 2 GB      | swap      | Swap |
-| sda3      | remainder | ext4      | Storage · Samba · Docker data |
+|-----------|-----------|------------|---------|
+| sda1      | 20 GB     | ext4       | extroot (`/overlay`) |
+| sda2      | 2 GB      | swap       | Swap |
+| sda3      | remainder | ext4       | Storage · Samba · Docker data |
 
-> The script can create this layout automatically if the drive is unpartitioned,  
+> The script can create this layout automatically if the drive is unpartitioned,
 > or work with your existing layout — formatting only what is necessary.
 
 ---
 
 ## Features
 
-- **Firmware auto-detection** — GL.iNet vs. vanilla OpenWrt
-- **Two-phase setup** — Phase 1 (pre-reboot) configures extroot;  
+- **Two-phase setup** — Phase 1 (pre-reboot) configures extroot;
   Phase 2 (post-reboot) activates swap, storage, and services
 - **Idempotent** — safe to re-run; skips already-configured steps
 - **Partition wizard** — detects existing partitions, formats only if needed (with confirmation)
@@ -43,7 +45,7 @@ in a two-phase, reboot-safe, idempotent flow.
   - Portainer CE (Docker Web UI, deployed as container)
   - AdGuard Home (DNS ad-blocking)
   - Transmission (torrent client + LuCI)
-  - WireGuard VPN *(vanilla OpenWrt only — built into GL.iNet firmware)*
+  - WireGuard VPN (kernel module + tools)
 - **Uninstaller** — reverses all fstab changes, leaves data intact
 
 ---
@@ -51,24 +53,26 @@ in a two-phase, reboot-safe, idempotent flow.
 ## Quick Start
 
 ```sh
-# 1. Connect USB drive to the router
+# 1. Flash vanilla OpenWrt 25.12.3 on the GL-MT6000
 
-# 2. SSH in
-ssh root@192.168.8.1
+# 2. Connect USB drive to the router
 
-# 3. Install git (if not present)
-opkg update && opkg install git-http
+# 3. SSH in (default IP on vanilla OpenWrt)
+ssh root@192.168.1.1
 
-# 4. Clone
+# 4. Install git
+opkg update && opkg install git git-http
+
+# 5. Clone
 git clone https://github.com/pajus1337/gl-mt6000-extroot-setup.git
 cd gl-mt6000-extroot-setup
 chmod +x setup.sh uninstall.sh
 
-# 5. Run Phase 1
+# 6. Run Phase 1
 ./setup.sh
 # → router reboots
 
-# 6. SSH back in — Phase 2 is detected automatically
+# 7. SSH back in — Phase 2 is detected automatically
 cd gl-mt6000-extroot-setup
 ./setup.sh
 ```
@@ -91,11 +95,12 @@ gl-mt6000-extroot-setup/
 │   └── defaults.sh            # Package lists, size defaults, constants
 ├── lib/
 │   ├── common.sh              # Logging, colors, ash-safe utilities
-│   ├── detect.sh              # Firmware & hardware detection
+│   ├── detect.sh              # OpenWrt version & hardware detection
 │   ├── ui.sh                  # Interactive prompts and menus
 │   ├── partition.sh           # Partition check, format, GPT creation
 │   ├── packages.sh            # opkg wrapper
-│   └── storage.sh             # Extroot, swap, storage, service config
+│   ├── storage.sh             # Extroot, swap, storage, service config
+│   └── 79_wait_for_extroot    # Preinit hook: waits for USB before mount_root
 └── phases/
     ├── phase1_prereboot.sh    # Steps before reboot
     └── phase2_postreboot.sh   # Steps after reboot
@@ -107,13 +112,12 @@ gl-mt6000-extroot-setup/
 
 ### Phase 1 — Pre-reboot
 
-1. Detect firmware (GL.iNet / OpenWrt)
+1. Check OpenWrt version and device model
 2. Detect or prompt for USB device
 3. Validate partitions — create GPT layout and/or format only what is needed
 4. Install base packages (`block-mount`, `kmod-fs-ext4`, `e2fsprogs`, …)
 5. Select optional services to install later
-6. Copy `/overlay` to sda1, configure fstab via UCI (UUID-based)
-7. Reboot prompt with countdown (Ctrl+C to cancel)
+6. Copy `/overlay` to sda1, configure fstab via UCI (UUID-based); install preinit USB wait hook; reboot prompt
 
 ### Phase 2 — Post-reboot
 
@@ -125,6 +129,17 @@ gl-mt6000-extroot-setup/
 
 ---
 
+## USB Timing Note
+
+The GL-MT6000 USB controller enumerates ~4 s after preinit starts. Without intervention,
+`mount_root` runs before `/dev/sda1` appears and falls back to the internal eMMC overlay.
+
+Phase 1 installs `/lib/preinit/79_wait_for_extroot` — a small hook that waits for
+`/dev/sda1` before `mount_root` proceeds. This file is copied into the extroot image
+and survives reboots automatically.
+
+---
+
 ## Uninstall
 
 ```sh
@@ -133,17 +148,18 @@ gl-mt6000-extroot-setup/
 ./uninstall.sh
 ```
 
-Removes fstab entries, deactivates swap, unmounts storage.  
+Removes fstab entries, deactivates swap, unmounts storage.
 **Data on the USB drive is not touched.**
 
 ---
 
 ## Compatibility
 
-| Firmware | Version | Status |
-|----------|---------|--------|
-| GL.iNet GL-MT6000 | OpenWrt 21.02-SNAPSHOT, BusyBox v1.33.2 | Tested |
-| Vanilla OpenWrt | 25.12.2 (r32802-f505120278) | Supported |
+| Firmware        | Version                              | Status   |
+|-----------------|--------------------------------------|----------|
+| Vanilla OpenWrt | 25.12.3 (r32912-6639b15f62)          | Tested   |
+| Vanilla OpenWrt | 25.12.x newer                        | Expected |
+| GL.iNet stock   | any                                  | Not supported |
 
 Shell: `/bin/sh` — BusyBox ash compatible, no bash required.
 
@@ -151,7 +167,7 @@ Shell: `/bin/sh` — BusyBox ash compatible, no bash required.
 
 ## Contributing
 
-Issues and pull requests are welcome.  
+Issues and pull requests are welcome.
 Please test on a real device before submitting — or clearly mark as untested.
 
 ---

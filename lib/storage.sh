@@ -107,9 +107,9 @@ setup_extroot() {
     log_info "Copying current /overlay to ${part} (this may take a moment)..."
     run_cmd_verbose tar -C /overlay -cf - . | tar -C "$TMP_EXTROOT_MOUNT" -xf -
 
-    # block extroot checks that upper/etc/.extroot-uuid matches the UUID of the
-    # device currently mounted at /overlay (loop0 on GL.iNet, a partition elsewhere).
-    # Must NOT use sda1's own UUID — that's only for the fstab entry.
+    # block-mount validates upper/etc/.extroot-uuid against the UUID of the device
+    # currently mounted at /overlay. On vanilla OpenWrt this is an eMMC partition.
+    # Must NOT use sda1's UUID — that's only for the fstab entry.
     local overlay_src overlay_uuid
     overlay_src=$(grep " /overlay " /proc/mounts | cut -d' ' -f1)
     overlay_uuid=""
@@ -121,7 +121,7 @@ setup_extroot() {
         log_info "Overlay UUID (${overlay_uuid}) written to upper/etc/.extroot-uuid"
     else
         log_warn "Cannot determine overlay device UUID — upper/etc/.extroot-uuid not written."
-        log_warn "Extroot UUID validation may fail on some firmware."
+        log_warn "Extroot UUID validation will be skipped by block-mount."
     fi
 
     # Set overlay state to FS_PENDING (1) so mount_root activates extroot.
@@ -153,7 +153,6 @@ OPT_PORTAINER=${OPT_PORTAINER:-0}
 OPT_ADGUARD=${OPT_ADGUARD:-0}
 OPT_TRANSMISSION=${OPT_TRANSMISSION:-0}
 OPT_WIREGUARD=${OPT_WIREGUARD:-0}
-FIRMWARE=${FIRMWARE:-openwrt}
 STORAGE_MOUNT_POINT=${STORAGE_MOUNT_POINT}
 EOF
     log_info "Service config saved to ${file}."

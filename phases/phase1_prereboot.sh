@@ -1,5 +1,5 @@
 #!/bin/sh
-# Phase 1 — Pre-reboot: system detection, partitions, extroot configuration
+# Phase 1 — Pre-reboot: system check, partitions, extroot configuration
 
 run_phase1() {
     printf "\n${C_BOLD}${C_CYAN}"
@@ -10,8 +10,8 @@ run_phase1() {
     printf "${C_RESET}\n"
     printf "Log file: ${C_DIM}%s${C_RESET}\n\n" "$LOG_FILE"
 
-    # ── 1. Firmware detection ──────────────────────────────────────────────────
-    header "Step 1/6 — Firmware Detection"
+    # ── 1. System check ────────────────────────────────────────────────────────
+    header "Step 1/6 — System Check"
     detect_firmware
 
     # ── 2. USB device selection ────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 #!/bin/sh
 # User interaction: prompts, menus, confirmations, countdown
-# Requires: lib/common.sh (colors), lib/detect.sh (FIRMWARE)
-# Ash (BusyBox v1.33.2) compatible — no bash-isms
+# Requires: lib/common.sh (colors)
+# Ash compatible — no bash-isms
 
 # Ask a yes/no question. Returns 0 for yes, 1 for no.
 # Usage: ask_yn "Question" [default: y|n]
@@ -135,12 +135,7 @@ ask_optional_services() {
     ask_yn "AdGuard Home (DNS ad-blocking)"         "n" && OPT_ADGUARD=1      || OPT_ADGUARD=0
     ask_yn "Transmission (torrent daemon + LuCI)"   "n" && OPT_TRANSMISSION=1 || OPT_TRANSMISSION=0
 
-    # WireGuard ships by default in GL.iNet firmware; only ask on vanilla OpenWrt
-    if [ "${FIRMWARE:-openwrt}" = "openwrt" ]; then
-        ask_yn "WireGuard VPN (kernel module + tools)" "n" && OPT_WIREGUARD=1 || OPT_WIREGUARD=0
-    else
-        OPT_WIREGUARD=0
-    fi
+    ask_yn "WireGuard VPN (kernel module + tools)" "n" && OPT_WIREGUARD=1 || OPT_WIREGUARD=0
 }
 
 # Helper for print_service_summary — defined at top-level (ash limitation)

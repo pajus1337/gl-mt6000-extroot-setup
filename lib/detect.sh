@@ -1,28 +1,25 @@
 #!/bin/sh
 # System and hardware detection
 
-# Sets globals: FIRMWARE (glinet|openwrt), OPENWRT_VERSION, DEVICE_MODEL
+# Reads OpenWrt version and device model. Dies if not running on OpenWrt.
+# Sets globals: OPENWRT_VERSION, DEVICE_MODEL
 detect_firmware() {
     if [ -f /etc/openwrt_release ]; then
         . /etc/openwrt_release
         OPENWRT_VERSION="${DISTRIB_RELEASE:-unknown}"
     else
-        die "Not an OpenWrt-based system. Aborting."
+        die "Not an OpenWrt system. This tool requires vanilla OpenWrt 25.12.3+."
     fi
 
-    if [ -f /etc/glinet ] \
-    || [ -d /etc/config/glconfig ] \
-    || [ -f /usr/bin/gl_health ] \
-    || grep -qiE "glinet|gl-inet" /etc/openwrt_release 2>/dev/null; then
-        FIRMWARE="glinet"
-        DEVICE_MODEL=$(cat /tmp/sysinfo/model 2>/dev/null || uci get glconfig.general.model 2>/dev/null || echo "GL.iNet device")
-    else
-        FIRMWARE="openwrt"
-        DEVICE_MODEL=$(cat /tmp/sysinfo/model 2>/dev/null || echo "OpenWrt device")
-    fi
+    DEVICE_MODEL=$(cat /tmp/sysinfo/model 2>/dev/null || echo "GL-MT6000")
 
-    log_info "Firmware : ${FIRMWARE} (OpenWrt ${OPENWRT_VERSION})"
-    log_info "Device   : ${DEVICE_MODEL}"
+    log_info "OpenWrt version : ${OPENWRT_VERSION}"
+    log_info "Device          : ${DEVICE_MODEL}"
+
+    case "$OPENWRT_VERSION" in
+        25.*) ;;
+        *) log_warn "Tested on OpenWrt 25.12.3 — running '${OPENWRT_VERSION}', proceed with caution." ;;
+    esac
 }
 
 # Sets globals: DETECTED_USB_DEV (e.g. sda), USB_TOTAL_MB
@@ -31,11 +28,9 @@ detect_usb_device() {
 
     for sysdev in /sys/block/sd* /sys/block/vd*; do
         [ -b "/dev/$(basename "$sysdev")" ] || continue
-        # Skip if it's the root device
         if grep -q "$(basename "$sysdev")" /proc/cmdline 2>/dev/null; then
             continue
         fi
-        # Accept only devices with a valid size > 0
         local size_sectors
         size_sectors=$(cat "${sysdev}/size" 2>/dev/null || echo 0)
         [ "$size_sectors" -gt 0 ] 2>/dev/null || continue

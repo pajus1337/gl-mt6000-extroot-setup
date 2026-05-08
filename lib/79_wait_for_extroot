@@ -1,7 +1,8 @@
 #!/bin/sh
 # Wait for USB extroot device before mount_root runs.
-# Needed on GL-MT6000: USB controller enumerates after preinit starts,
-# causing mount_root to miss the extroot UUID and fall back to eMMC overlay.
+# GL-MT6000 hardware: USB controller enumerates ~4 s after preinit starts.
+# Without this delay mount_root misses the extroot UUID and falls back to
+# the internal eMMC overlay.
 
 wait_for_extroot() {
     # During preinit the ROM fstab is empty so we cannot check fstab here.
@@ -11,9 +12,8 @@ wait_for_extroot() {
     while [ $i -lt 15 ]; do
         if [ -b /dev/sda1 ]; then
             sleep 1   # Extra second for blkid to read UUID reliably
-            # On GL-MT6000 dmesg shows ext4 loaded at ~8.25s but mount_root starts
-            # at ~7.96s — load ext4 now so extroot mount attempt doesn't fail with
-            # "unknown filesystem" before kmodloader runs inside mount_root.
+            # ext4 may not be loaded yet when mount_root runs; load it now so the
+            # extroot mount attempt doesn't fail with "unknown filesystem".
             modprobe ext4 2>/dev/null || insmod /lib/modules/*/ext4.ko 2>/dev/null || true
             return 0
         fi

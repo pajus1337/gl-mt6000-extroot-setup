@@ -1,5 +1,5 @@
 #!/bin/sh
-# Phase 2 — Post-reboot: verify extroot, swap, storage, install services
+# Phase 2 — Post-reboot: verify extroot, configure swap/storage, install services
 
 run_phase2() {
     printf "\n${C_BOLD}${C_CYAN}"

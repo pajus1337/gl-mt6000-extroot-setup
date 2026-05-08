@@ -2,7 +2,7 @@
 # GL-MT6000 Setup Tool — Main entry point
 # Usage: ./setup.sh [/dev/sdX]
 #
-# Run on a fresh GL.iNet or vanilla OpenWrt installation.
+# Requires vanilla OpenWrt 25.12.3+ on the GL-MT6000 (Flint 2).
 # The script detects which phase it is in and continues automatically.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -43,7 +43,7 @@ done
 require_root
 
 printf "${C_BOLD}%s v%s${C_RESET}\n" "$TOOL_NAME" "$TOOL_VERSION"
-printf "${C_DIM}Designed for GL.iNet GL-MT6000 (Flint 2) — also supports vanilla OpenWrt.${C_RESET}\n"
+printf "${C_DIM}For GL-MT6000 (Flint 2) running vanilla OpenWrt 25.12.3+${C_RESET}\n"
 
 # ── Uninstall guard ────────────────────────────────────────────────────────────
 STATE_FILE="/${GL_SETUP_STATE_DIR}/${STATE_FILE_NAME}"
