@@ -14,6 +14,18 @@ run_phase1() {
     header "Step 1/6 — System Check"
     detect_firmware
 
+    # Ensure usb-storage module is loaded before USB device detection.
+    # kmod-usb-storage is in BASE_PACKAGES (Step 4) but the module must be
+    # present for /dev/sda to appear during detection in Step 2.
+    if ! grep -q "^usb_storage " /proc/modules 2>/dev/null; then
+        if ! modprobe usb-storage 2>/dev/null; then
+            log_info "usb-storage module not loaded - installing kmod-usb-storage..."
+            apk add kmod-usb-storage >> "$LOG_FILE" 2>&1 || true
+            modprobe usb-storage 2>/dev/null || true
+        fi
+        sleep 2
+    fi
+
     # ── 2. USB device selection ────────────────────────────────────────────────
     header "Step 2/6 — USB Device"
 
