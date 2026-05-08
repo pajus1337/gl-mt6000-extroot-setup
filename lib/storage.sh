@@ -241,6 +241,18 @@ configure_samba() {
     local share_dir="${STORAGE_MOUNT_POINT}/shared"
     mkdir -p "$share_dir"
 
+    # Package install does not create /etc/config/samba4 — uci add fails without it.
+    if [ ! -f /etc/config/samba4 ]; then
+        cat > /etc/config/samba4 <<'EOF'
+config samba
+	option name 'OpenWrt'
+	option workgroup 'WORKGROUP'
+	option description 'OpenWrt Samba4 Server'
+	option homes 0
+EOF
+        log_info "Created default /etc/config/samba4."
+    fi
+
     # Only add share if not already present
     if ! uci show samba4 2>/dev/null | grep -q "path='${share_dir}'"; then
         uci add samba4 sambashare > /dev/null
@@ -283,6 +295,20 @@ EOF
 
 configure_portainer() {
     log_step "Configuring Portainer CE"
+    # Docker daemon needs a moment to be ready after configure_docker starts it.
+    local _i=0
+    printf "[INFO]  Waiting for Docker daemon"
+    while [ $_i -lt 15 ]; do
+        docker info >/dev/null 2>&1 && break
+        printf "."
+        sleep 2
+        _i=$(( _i + 1 ))
+    done
+    printf "\n"
+    if ! docker info >/dev/null 2>&1; then
+        log_warn "Docker daemon not ready — Portainer skipped. Run manually after Docker starts."
+        return 0
+    fi
     if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^portainer$"; then
         docker volume create portainer_data >> "$LOG_FILE" 2>&1
         docker run -d \
@@ -304,12 +330,18 @@ configure_transmission() {
     local dl_dir="${STORAGE_MOUNT_POINT}/downloads"
     mkdir -p "$dl_dir"
 
-    if uci show transmission >/dev/null 2>&1; then
+    # Package install does not create /etc/config/transmission.
+    if [ ! -f /etc/config/transmission ]; then
+        cat > /etc/config/transmission <<EOF
+config transmission
+	option enabled 1
+	option download_dir '${dl_dir}'
+EOF
+        log_info "Created default /etc/config/transmission."
+    else
         uci set transmission.@transmission[0].download_dir="$dl_dir"
         uci commit transmission
-        log_ok "Transmission download dir → ${dl_dir}."
-    else
-        log_warn "Transmission UCI config not found — set download dir manually."
     fi
+    log_ok "Transmission download dir → ${dl_dir}."
     /etc/init.d/transmission enable 2>/dev/null && /etc/init.d/transmission start 2>/dev/null || true
 }

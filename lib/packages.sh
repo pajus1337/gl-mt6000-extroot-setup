@@ -19,7 +19,7 @@ pkg_install() {
     local to_install=""
 
     for pkg in $pkgs; do
-        if apk info "$pkg" > /dev/null 2>&1; then
+        if apk list --installed 2>/dev/null | grep -qE "^${pkg}-[0-9]"; then
             log_info "Already installed: ${pkg}"
         else
             to_install="${to_install} ${pkg}"
