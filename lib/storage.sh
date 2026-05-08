@@ -185,9 +185,14 @@ setup_swap() {
     uuid=$(get_uuid "$part")
 
     if [ -z "$uuid" ]; then
-        log_warn "No UUID found for ${part} — creating swap signature."
-        run_cmd mkswap -L "swap" "$part"
-        uuid=$(get_uuid "$part")
+        # block info does not return UUID for swap partitions; run mkswap and
+        # extract the UUID directly from its output line (e.g. "UUID=xxxx-...").
+        log_info "Writing swap header on ${part}..."
+        local mkswap_out
+        mkswap_out=$(mkswap -L "swap" "$part" 2>&1)
+        printf "%s\n" "$mkswap_out" >> "$LOG_FILE"
+        uuid=$(printf "%s" "$mkswap_out" \
+            | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
         [ -n "$uuid" ] || die "Cannot get UUID for ${part} after mkswap."
     fi
 
