@@ -78,7 +78,7 @@ is_swap_active() {
 
 # Check if storage is mounted
 is_storage_mounted() {
-    mountpoint -q "${STORAGE_MOUNT_POINT}" 2>/dev/null
+    grep -q " ${STORAGE_MOUNT_POINT} " /proc/mounts 2>/dev/null
 }
 
 # Determine partition filesystem type.
