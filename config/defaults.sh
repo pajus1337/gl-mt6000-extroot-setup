@@ -12,7 +12,7 @@ CONFIG_FILE_NAME="services.conf"
 LOG_FILE="/tmp/gl-setup.log"
 
 # Base packages required before reboot (vanilla OpenWrt 25.12.3)
-BASE_PACKAGES="block-mount kmod-fs-ext4 kmod-usb-storage e2fsprogs"
+BASE_PACKAGES="block-mount kmod-fs-ext4 kmod-usb-storage kmod-usb-storage-uas kmod-scsi-core e2fsprogs"
 EXTRA_BASE_PACKAGES="tune2fs lsblk"   # best-effort; non-fatal if missing
 
 # Optional service package lists
