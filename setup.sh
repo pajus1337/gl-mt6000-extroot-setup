@@ -17,6 +17,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "${SCRIPT_DIR}/lib/storage.sh"
 . "${SCRIPT_DIR}/phases/phase1_prereboot.sh"
 . "${SCRIPT_DIR}/phases/phase2_postreboot.sh"
+. "${SCRIPT_DIR}/phases/phase3_postupgrade.sh"
 
 # ── Argument parsing ───────────────────────────────────────────────────────────
 CLI_USB_DEV=""
@@ -45,6 +46,13 @@ require_root
 printf "${C_BOLD}%s v%s${C_RESET}\n" "$TOOL_NAME" "$TOOL_VERSION"
 printf "${C_DIM}For GL-MT6000 (Flint 2) running vanilla OpenWrt 25.12.3+${C_RESET}\n"
 
+# ── Ensure USB storage modules before phase detection ─────────────────────────
+# Loads usb-storage + uas so /dev/sda is visible for is_post_upgrade() check.
+# No-op if extroot is already active (USB working by definition) or modules loaded.
+if ! is_extroot_active; then
+    ensure_usb_modules
+fi
+
 # ── Uninstall guard ────────────────────────────────────────────────────────────
 STATE_FILE="/${GL_SETUP_STATE_DIR}/${STATE_FILE_NAME}"
 if [ -f "$STATE_FILE" ] && grep -q "^PHASE=COMPLETE" "$STATE_FILE"; then
@@ -57,12 +65,14 @@ fi
 if is_extroot_active; then
     log_info "Extroot is active — resuming Phase 2."
     run_phase2
+elif is_post_upgrade; then
+    log_info "Post-upgrade state detected — previous extroot found on sda1."
+    run_phase3
+elif is_extroot_configured; then
+    printf "\n${C_YELLOW}[WARN]${C_RESET} Extroot is configured in fstab but NOT currently active.\n"
+    printf "  → The router may need a reboot for extroot to activate.\n\n"
+    ask_yn "Reboot now?" "y" && reboot_countdown
+    exit 0
 else
-    if is_extroot_configured; then
-        printf "\n${C_YELLOW}[WARN]${C_RESET} Extroot is configured in fstab but NOT currently active.\n"
-        printf "  → The router may need a reboot for extroot to activate.\n\n"
-        ask_yn "Reboot now?" "y" && reboot_countdown
-        exit 0
-    fi
     run_phase1
 fi

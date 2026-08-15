@@ -97,5 +97,13 @@ run_phase2() {
     printf "  %-20s %s\n" "${STORAGE_MOUNT_POINT}" "${st_info:-mounted}"
 
     printf "\n${C_DIM}Full log: %s${C_RESET}\n\n" "$LOG_FILE"
+
+    # Ensure upgrade resilience (hook + fstab preserved across sysupgrade)
+    setup_sysupgrade_conf
+
+    # Mark setup as complete so re-runs warn the user
+    local _state_file="/${GL_SETUP_STATE_DIR}/${STATE_FILE_NAME}"
+    printf "PHASE=COMPLETE\n" > "$_state_file" 2>/dev/null || true
+
     log_info "Phase 2 complete. Setup finished."
 }

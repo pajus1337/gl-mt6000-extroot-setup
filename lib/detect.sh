@@ -1,6 +1,67 @@
 #!/bin/sh
 # System and hardware detection
 
+# Load USB storage modules required for GL-MT6000 (USB 3.0 SuperSpeed).
+# Must run before phase detection so /dev/sda is visible.
+# No-op if both modules are already loaded.
+ensure_usb_modules() {
+    local _changed=0
+
+    if ! grep -q "^usb_storage " /proc/modules 2>/dev/null; then
+        if ! modprobe usb-storage 2>/dev/null; then
+            log_info "Installing kmod-usb-storage..."
+            apk add kmod-usb-storage >> "$LOG_FILE" 2>&1 || true
+            modprobe usb-storage 2>/dev/null || log_warn "Could not load usb-storage."
+        fi
+        _changed=1
+    fi
+
+    # uas (USB Attached SCSI) is required for USB 3.0 SuperSpeed on GL-MT6000 —
+    # usb-storage alone does not bind SuperSpeed devices on this kernel.
+    if ! grep -q "^uas " /proc/modules 2>/dev/null; then
+        if ! modprobe uas 2>/dev/null; then
+            log_info "Installing kmod-usb-storage-uas..."
+            apk add kmod-usb-storage-uas >> "$LOG_FILE" 2>&1 || true
+            modprobe uas 2>/dev/null || log_warn "Could not load uas."
+        fi
+        _changed=1
+    fi
+
+    if [ "$_changed" = "1" ]; then
+        local _i=0
+        printf "[INFO]  Waiting for USB block device..."
+        while [ $_i -lt 10 ]; do
+            ls /sys/block/sd* /sys/block/vd* > /dev/null 2>&1 && break
+            printf "."
+            sleep 1
+            _i=$(( _i + 1 ))
+        done
+        printf "\n"
+    fi
+}
+
+# Return 0 if a previous gl-setup extroot is present on sda1 but NOT currently
+# mounted. This indicates a post-upgrade state: data intact, modules missing.
+# Detection: sda1 is ext4 and contains an overlayfs upper/ directory.
+is_post_upgrade() {
+    is_extroot_active && return 1
+    [ -b /dev/sda1 ] || return 1
+    local _fstype
+    _fstype=$(get_fs_type /dev/sda1 2>/dev/null)
+    [ "$_fstype" = "ext4" ] || return 1
+    local _mp="/tmp/gl-upgrade-check"
+    mkdir -p "$_mp"
+    if ! mount -t ext4 -o ro /dev/sda1 "$_mp" 2>/dev/null; then
+        rmdir "$_mp" 2>/dev/null || true
+        return 1
+    fi
+    local _rc=1
+    [ -d "${_mp}/upper" ] && _rc=0
+    umount "$_mp" 2>/dev/null || true
+    rmdir "$_mp" 2>/dev/null || true
+    return $_rc
+}
+
 # Reads OpenWrt version and device model. Dies if not running on OpenWrt.
 # Sets globals: OPENWRT_VERSION, DEVICE_MODEL
 detect_firmware() {

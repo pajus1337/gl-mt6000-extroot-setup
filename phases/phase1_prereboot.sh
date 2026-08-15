@@ -13,27 +13,7 @@ run_phase1() {
     # ── 1. System check ────────────────────────────────────────────────────────
     header "Step 1/6 — System Check"
     detect_firmware
-
-    # Ensure usb-storage module is loaded before USB device detection.
-    # kmod-usb-storage is in BASE_PACKAGES (Step 4) but the module must be
-    # present for /dev/sda to appear during detection in Step 2.
-    if ! grep -q "^usb_storage " /proc/modules 2>/dev/null; then
-        if ! modprobe usb-storage 2>/dev/null; then
-            log_info "Installing kmod-usb-storage..."
-            apk add kmod-usb-storage >> "$LOG_FILE" 2>&1 || true
-            modprobe usb-storage 2>/dev/null || log_warn "Could not load usb-storage module."
-        fi
-        # Wait for SCSI layer to create the block device (up to 10 s)
-        local _i=0
-        printf "[INFO]  Waiting for USB block device..."
-        while [ $_i -lt 10 ]; do
-            ls /sys/block/sd* /sys/block/vd* > /dev/null 2>&1 && break
-            printf "."
-            sleep 1
-            _i=$(( _i + 1 ))
-        done
-        printf "\n"
-    fi
+    # USB modules already loaded by setup.sh preamble (ensure_usb_modules).
 
     # ── 2. USB device selection ────────────────────────────────────────────────
     header "Step 2/6 — USB Device"
@@ -75,9 +55,10 @@ run_phase1() {
         print_service_summary
     fi
 
-    # ── 6. Extroot setup ───────────────────────────────────────────────────────
+    # ── 6. Extroot setup + upgrade resilience ─────────────────────────────────
     header "Step 6/6 — Extroot Configuration"
     setup_extroot "$PART1"
+    setup_sysupgrade_conf
 
     # ── Summary ────────────────────────────────────────────────────────────────
     separator

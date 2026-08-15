@@ -325,6 +325,29 @@ configure_portainer() {
     fi
 }
 
+# Add gl-setup's critical files to /etc/sysupgrade.conf so they survive a
+# firmware upgrade. Preserving the preinit hook + fstab means extroot has a
+# better chance of mounting without a full Phase 3 recovery after the next upgrade.
+setup_sysupgrade_conf() {
+    local _conf="/etc/sysupgrade.conf"
+    local _changed=0
+
+    if ! grep -q "79_wait_for_extroot" "$_conf" 2>/dev/null; then
+        printf "/lib/preinit/79_wait_for_extroot\n" >> "$_conf"
+        _changed=1
+    fi
+    if ! grep -q "/etc/config/fstab" "$_conf" 2>/dev/null; then
+        printf "/etc/config/fstab\n" >> "$_conf"
+        _changed=1
+    fi
+
+    if [ "$_changed" = "1" ]; then
+        log_ok "Upgrade resilience: preinit hook + fstab added to ${_conf}."
+    else
+        log_info "Upgrade resilience already configured in ${_conf}."
+    fi
+}
+
 configure_transmission() {
     log_step "Configuring Transmission"
     local dl_dir="${STORAGE_MOUNT_POINT}/downloads"
