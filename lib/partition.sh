@@ -80,13 +80,13 @@ format_swap() {
     log_ok "Formatted ${part} as swap."
 }
 
-# Format sda3 as ext4 (storage) and remove reserved root blocks
+# Format sda3 as ext4 (storage) with no reserved root blocks.
+# -m 0 at mkfs time avoids a separate tune2fs call (and its race condition
+# when the block device hasn't fully flushed after mkfs).
 format_storage() {
     local part="$1"
     log_step "Formatting ${part} as ext4 (storage)"
-    run_cmd mkfs.ext4 -F -L "storage" "$part"
-    log_info "Removing reserved block space (tune2fs -m 0)"
-    run_cmd tune2fs -m 0 "$part"
+    run_cmd mkfs.ext4 -F -L "storage" -m 0 "$part"
     log_ok "Formatted ${part} as ext4, reserved blocks = 0%%."
 }
 
