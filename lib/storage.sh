@@ -273,73 +273,59 @@ configure_docker() {
     local docker_data="${STORAGE_MOUNT_POINT}/docker"
     mkdir -p "$docker_data"
 
-    local docker_cfg="/etc/docker/daemon.json"
-    if [ ! -f "$docker_cfg" ] || ! grep -q "data-root" "$docker_cfg"; then
-        mkdir -p /etc/docker
-        cat > "$docker_cfg" <<EOF
-{
-  "data-root": "${docker_data}",
-  "log-driver": "json-file",
-  "log-opts": {
-    "max-size": "10m",
-    "max-file": "3"
-  }
-}
-EOF
-        log_ok "Docker data-root → ${docker_data}."
-    else
-        log_ok "Docker daemon.json already configured — skipping."
-    fi
-
-    configure_docker_fw4
-    /etc/init.d/docker enable 2>/dev/null && /etc/init.d/docker start 2>/dev/null || true
-}
-
-# configure_docker_fw4 — the dockerd package ships with `option iptables '1'`,
-# meaning Docker manages its own NAT/filter rules via the legacy iptables
-# binary. Under fw4/nftables this triggers the "Legacy rules detected"
-# warning and can leave containers with inconsistent filtering. Disable
-# Docker's own iptables management and give the docker bridge a native fw4
-# zone (masqueraded to wan) instead, so container outbound traffic is handled
-# the same way as the rest of the router's firewall.
-configure_docker_fw4() {
+    # The dockerd init script builds its runtime config from UCI
+    # (/etc/config/dockerd → /tmp/dockerd/daemon.json) and only looks at
+    # /etc/docker/daemon.json if `alt_config_file` is explicitly set — which
+    # it isn't. Writing data-root to /etc/docker/daemon.json is silently
+    # ignored, so Docker keeps its default /opt/docker/, which lives on the
+    # small root overlay instead of the storage partition. Confirmed live:
+    # this also made overlay2 fail outright ("mount source: overlay ...
+    # invalid argument") since it can't stack on the root's own overlayfs.
+    # Set data_root via UCI instead so it actually takes effect.
     uci -q get dockerd.globals >/dev/null 2>&1 || uci set dockerd.globals='globals'
+    uci set dockerd.globals.data_root="${docker_data}/"
     uci set dockerd.globals.iptables='0'
     uci commit dockerd
-    log_ok "dockerd: iptables management disabled (using fw4 instead)."
+    log_ok "Docker data-root → ${docker_data} (via UCI, iptables management disabled)."
 
-    local zone_exists
-    zone_exists="$(uci show firewall | grep "=zone" | while read -r line; do
-        local name
-        name="$(uci get "${line%=zone}.name" 2>/dev/null)"
-        [ "$name" = "docker" ] && printf 'yes' && break
-    done)"
+    /etc/init.d/docker enable 2>/dev/null
+    /etc/init.d/docker start 2>/dev/null || true
 
-    if [ "$zone_exists" = "yes" ]; then
-        log_ok "Firewall zone 'docker' already configured — skipping."
+    configure_docker_fw4
+}
+
+# configure_docker_fw4 — dockerd's own init script auto-creates a 'docker'
+# network interface/bridge device and firewall zone the first time it starts
+# (see uciadd() in /etc/init.d/dockerd), but leaves the zone without
+# masquerade or a forwarding rule to wan. Combined with iptables='0' above
+# (Docker no longer adds its own NAT either), containers have no route out
+# until this runs — verified live: 100% ping loss before, 0% after.
+configure_docker_fw4() {
+    local tries=0
+    while ! uci -q get firewall.docker >/dev/null 2>&1 && [ "$tries" -lt 10 ]; do
+        sleep 1
+        tries=$(( tries + 1 ))
+    done
+    if ! uci -q get firewall.docker >/dev/null 2>&1; then
+        log_warn "Firewall zone 'docker' not found after starting dockerd — skipping fw4 patch."
+        log_warn "Run this module again after Docker has started at least once."
         return 0
     fi
 
-    local zone
-    zone="$(uci add firewall zone)"
-    uci set "firewall.${zone}.name=docker"
-    uci set "firewall.${zone}.input=REJECT"
-    uci set "firewall.${zone}.output=ACCEPT"
-    uci set "firewall.${zone}.forward=REJECT"
-    uci set "firewall.${zone}.masq=1"
-    uci set "firewall.${zone}.mtu_fix=1"
-    uci add_list "firewall.${zone}.device=${DOCKER_BRIDGE_DEVICE}"
+    uci set firewall.docker.masq='1'
+    uci set firewall.docker.mtu_fix='1'
 
-    local fwd
-    fwd="$(uci add firewall forwarding)"
-    uci set "firewall.${fwd}.src=docker"
-    uci set "firewall.${fwd}.dest=wan"
+    if ! uci -q get firewall.docker_wan_fwd >/dev/null 2>&1; then
+        local fwd
+        fwd="$(uci add firewall forwarding)"
+        uci rename "firewall.${fwd}=docker_wan_fwd"
+        uci set firewall.docker_wan_fwd.src='docker'
+        uci set firewall.docker_wan_fwd.dest='wan'
+    fi
 
     uci commit firewall
     service firewall reload 2>/dev/null || true
-    log_ok "Firewall zone 'docker' created (${DOCKER_BRIDGE_DEVICE} → wan, masqueraded)."
-    log_info "Container port publishing (-p) now needs a manual port forward:"
-    log_info "  LuCI → Network → Firewall → Port Forwards → dest zone 'docker'"
+    log_ok "Firewall zone 'docker' patched: masquerade + forwarding to wan enabled."
 }
 
 configure_portainer() {
