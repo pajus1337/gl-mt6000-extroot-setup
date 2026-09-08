@@ -290,7 +290,56 @@ EOF
     else
         log_ok "Docker daemon.json already configured — skipping."
     fi
+
+    configure_docker_fw4
     /etc/init.d/docker enable 2>/dev/null && /etc/init.d/docker start 2>/dev/null || true
+}
+
+# configure_docker_fw4 — the dockerd package ships with `option iptables '1'`,
+# meaning Docker manages its own NAT/filter rules via the legacy iptables
+# binary. Under fw4/nftables this triggers the "Legacy rules detected"
+# warning and can leave containers with inconsistent filtering. Disable
+# Docker's own iptables management and give the docker bridge a native fw4
+# zone (masqueraded to wan) instead, so container outbound traffic is handled
+# the same way as the rest of the router's firewall.
+configure_docker_fw4() {
+    uci -q get dockerd.globals >/dev/null 2>&1 || uci set dockerd.globals='globals'
+    uci set dockerd.globals.iptables='0'
+    uci commit dockerd
+    log_ok "dockerd: iptables management disabled (using fw4 instead)."
+
+    local zone_exists
+    zone_exists="$(uci show firewall | grep "=zone" | while read -r line; do
+        local name
+        name="$(uci get "${line%=zone}.name" 2>/dev/null)"
+        [ "$name" = "docker" ] && printf 'yes' && break
+    done)"
+
+    if [ "$zone_exists" = "yes" ]; then
+        log_ok "Firewall zone 'docker' already configured — skipping."
+        return 0
+    fi
+
+    local zone
+    zone="$(uci add firewall zone)"
+    uci set "firewall.${zone}.name=docker"
+    uci set "firewall.${zone}.input=REJECT"
+    uci set "firewall.${zone}.output=ACCEPT"
+    uci set "firewall.${zone}.forward=REJECT"
+    uci set "firewall.${zone}.masq=1"
+    uci set "firewall.${zone}.mtu_fix=1"
+    uci add_list "firewall.${zone}.device=${DOCKER_BRIDGE_DEVICE}"
+
+    local fwd
+    fwd="$(uci add firewall forwarding)"
+    uci set "firewall.${fwd}.src=docker"
+    uci set "firewall.${fwd}.dest=wan"
+
+    uci commit firewall
+    service firewall reload 2>/dev/null || true
+    log_ok "Firewall zone 'docker' created (${DOCKER_BRIDGE_DEVICE} → wan, masqueraded)."
+    log_info "Container port publishing (-p) now needs a manual port forward:"
+    log_info "  LuCI → Network → Firewall → Port Forwards → dest zone 'docker'"
 }
 
 configure_portainer() {
