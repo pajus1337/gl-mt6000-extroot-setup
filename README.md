@@ -12,7 +12,7 @@ in a multi-phase, reboot-safe, idempotent flow that also handles post-upgrade re
 | Requirement | Details |
 |-------------|---------|
 | Router      | GL.iNet GL-MT6000 (Flint 2) — 1 GB RAM, 4-core MediaTek MT7986 |
-| Firmware    | Vanilla OpenWrt 25.12.x (tested on 25.12.3 and 25.12.5) |
+| Firmware    | Vanilla OpenWrt 25.12.x (tested on 25.12.3, 25.12.5 and 25.12.6) |
 | USB Drive   | Any USB 2.0/3.x drive, GPT-partitioned (256 GB recommended) |
 
 > **GL.iNet stock firmware is not supported.**  
@@ -223,6 +223,7 @@ Removes fstab entries, deactivates swap, unmounts storage.
 |-----------------|-----------|----------|
 | Vanilla OpenWrt | 25.12.3   | Tested   |
 | Vanilla OpenWrt | 25.12.5   | Tested   |
+| Vanilla OpenWrt | 25.12.6   | Tested (incl. upgrade from 25.12.5) |
 | Vanilla OpenWrt | 25.12.x   | Expected |
 | GL.iNet stock   | any       | Not supported |
 
