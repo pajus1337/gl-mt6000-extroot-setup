@@ -46,11 +46,13 @@ require_root
 printf "${C_BOLD}%s v%s${C_RESET}\n" "$TOOL_NAME" "$TOOL_VERSION"
 printf "${C_DIM}For GL-MT6000 (Flint 2) running vanilla OpenWrt 25.12.3+${C_RESET}\n"
 
-# ── Ensure USB storage modules before phase detection ─────────────────────────
-# Loads usb-storage + uas so /dev/sda is visible for is_post_upgrade() check.
-# No-op if extroot is already active (USB working by definition) or modules loaded.
+# ── Ensure USB storage support before phase detection ─────────────────────────
+# Loads usb-storage + uas so /dev/sda is visible, and installs block-mount +
+# kmod-fs-ext4 so is_post_upgrade() can look inside sda1. Both are missing on
+# a freshly flashed or upgraded image. No-op if extroot is already active.
 if ! is_extroot_active; then
     ensure_usb_modules
+    ensure_extroot_tools || true
 fi
 
 # ── Uninstall guard ────────────────────────────────────────────────────────────
@@ -73,6 +75,12 @@ elif is_extroot_configured; then
     printf "  → The router may need a reboot for extroot to activate.\n\n"
     ask_yn "Reboot now?" "y" && reboot_countdown
     exit 0
+elif is_unreadable_usb_disk; then
+    printf "\n${C_RED}[ERROR]${C_RESET} /dev/sda1 exists but cannot be inspected (block-mount or ext4 support missing).\n"
+    printf "  It may hold a previous installation, so Phase 1 (partitioning) is not offered.\n"
+    printf "  Check internet access, then run: apk update && apk add block-mount kmod-fs-ext4\n"
+    printf "  and re-run this script. Log: %s\n\n" "$LOG_FILE"
+    exit 1
 else
     run_phase1
 fi
