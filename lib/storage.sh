@@ -457,9 +457,16 @@ setup_sysupgrade_conf() {
         printf "/etc/config/fstab\n" >> "$_conf"
         _changed=1
     fi
+    # Only the package snapshot, never the whole state dir: a preserved
+    # state file (PHASE=COMPLETE) would make setup.sh refuse to run Phase 3.
+    local _snapshot="/${GL_SETUP_STATE_DIR}/${SNAPSHOT_FILE_NAME}"
+    if ! grep -qxF "$_snapshot" "$_conf" 2>/dev/null; then
+        printf "%s\n" "$_snapshot" >> "$_conf"
+        _changed=1
+    fi
 
     if [ "$_changed" = "1" ]; then
-        log_ok "Upgrade resilience: preinit hook + fstab added to ${_conf}."
+        log_ok "Upgrade resilience: preinit hook, fstab and package snapshot added to ${_conf}."
     else
         log_info "Upgrade resilience already configured in ${_conf}."
     fi

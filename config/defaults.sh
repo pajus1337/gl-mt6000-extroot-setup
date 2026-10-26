@@ -10,6 +10,7 @@ GL_SETUP_STATE_DIR="etc/gl-setup"   # relative to overlay root (sda1/upper/)
 STATE_FILE_NAME="state"
 CONFIG_FILE_NAME="services.conf"
 PACKAGES_FILE_NAME="packages-to-restore"   # written by Phase 3, read by Phase 2
+SNAPSHOT_FILE_NAME="packages-snapshot"     # written by Phase 2, kept across sysupgrade
 LOG_FILE="/tmp/gl-setup.log"
 
 # Base packages required before reboot (vanilla OpenWrt 25.12.3)

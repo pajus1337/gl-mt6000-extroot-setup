@@ -55,9 +55,18 @@ run_phase3() {
         _pkg_count=$(grep -c . "$_pkg_list" 2>/dev/null || true)
         log_ok "Previous installation added ${_pkg_count:-0} package(s) on top of its firmware."
         log_info "Phase 2 will offer to reinstall those the new firmware does not provide."
+    elif [ -s "/${GL_SETUP_STATE_DIR}/${SNAPSHOT_FILE_NAME}" ]; then
+        cp "/${GL_SETUP_STATE_DIR}/${SNAPSHOT_FILE_NAME}" "$_pkg_list"
+        log_ok "Using the package snapshot kept across the upgrade ($(grep -c . "$_pkg_list") package(s))."
     else
-        log_warn "No package list found in the old overlay - nothing to reinstall automatically."
+        log_warn "No package list found - nothing to reinstall automatically."
     fi
+
+    local _archive
+    for _archive in "${_mp}"/upper.*; do
+        [ -d "$_archive" ] || continue
+        log_warn "Older archive still on sda1: $(basename "$_archive") ($(du -sh "$_archive" 2>/dev/null | cut -f1)) - delete it once no longer needed."
+    done
 
     local _old_kver
     _old_kver=$(ls "${_mp}/upper/lib/modules" 2>/dev/null | head -1)

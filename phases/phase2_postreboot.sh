@@ -103,6 +103,11 @@ run_phase2() {
     printf "\n${C_DIM}Full log: %s${C_RESET}\n\n" "$LOG_FILE"
 
     # Ensure upgrade resilience (hook + fstab preserved across sysupgrade)
+    # and record the packages added on top of the firmware, so a later
+    # Phase 3 can restore them even if the old overlay cannot be read.
+    mkdir -p "/${GL_SETUP_STATE_DIR}"
+    save_user_packages /etc/apk/world "/${GL_SETUP_STATE_DIR}/${SNAPSHOT_FILE_NAME}" \
+        && log_info "Package snapshot saved to /${GL_SETUP_STATE_DIR}/${SNAPSHOT_FILE_NAME}."
     setup_sysupgrade_conf
 
     # Mark setup as complete so re-runs warn the user
