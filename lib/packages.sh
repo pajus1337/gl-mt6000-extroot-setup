@@ -83,6 +83,7 @@ restore_user_packages() {
     pkg_update
     if pkg_install "$pkgs" "previous packages"; then
         mv "$list" "${list}.done"
+        _refresh_dbus_services
         return 0
     fi
 
@@ -98,4 +99,18 @@ restore_user_packages() {
         log_warn "Could not reinstall:${failed}"
         log_warn "The list stays at ${list}. Check log: ${LOG_FILE}"
     fi
+    _refresh_dbus_services
+}
+
+# After many packages are installed at once, dbus may have started before a
+# newly installed service's policy file existed; avahi-daemon then keeps
+# failing with "Failed to contact D-Bus" until dbus is restarted (seen after
+# the 25.12.6 upgrade). Restart dbus first, then avahi, if both are present.
+_refresh_dbus_services() {
+    [ -x /etc/init.d/dbus ] || return 0
+    /etc/init.d/dbus restart >> "$LOG_FILE" 2>&1 || return 0
+    if [ -x /etc/init.d/avahi-daemon ]; then
+        /etc/init.d/avahi-daemon restart >> "$LOG_FILE" 2>&1 || true
+    fi
+    log_info "dbus restarted so services installed just now can register."
 }
