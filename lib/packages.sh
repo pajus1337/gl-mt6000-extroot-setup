@@ -41,10 +41,12 @@ pkg_install() {
 
 # Install base packages required for Phase 1 (extroot / storage setup)
 install_base_packages() {
+    local _rc=0
     log_step "Installing base packages"
     pkg_update
-    pkg_install "$BASE_PACKAGES" "base packages"
+    pkg_install "$BASE_PACKAGES" "base packages" || _rc=1
     pkg_install "$EXTRA_BASE_PACKAGES" "extra tools" || true
+    return $_rc
 }
 
 # Install optional service packages (called in Phase 2 after extroot is live)
@@ -56,4 +58,44 @@ install_optional_services() {
     [ "$OPT_ADGUARD"      = "1" ] && pkg_install "$PKG_ADGUARD"      "AdGuard Home"
     [ "$OPT_TRANSMISSION" = "1" ] && pkg_install "$PKG_TRANSMISSION"  "Transmission"
     [ "$OPT_WIREGUARD"    = "1" ] && pkg_install "$PKG_WIREGUARD"     "WireGuard"
+}
+
+# Reinstall the packages a previous installation had added on top of its
+# firmware (list written by Phase 3 after an upgrade). Packages the new
+# firmware already provides are skipped by pkg_install. If the batch fails
+# (e.g. a package was dropped from the feeds), retry one by one so a single
+# missing package does not block the rest. Never fatal.
+restore_user_packages() {
+    local list="/${GL_SETUP_STATE_DIR}/${PACKAGES_FILE_NAME}"
+    if [ ! -s "$list" ]; then
+        log_info "No package list from a previous installation - skipping."
+        return 0
+    fi
+
+    local pkgs
+    pkgs=$(tr '\n' ' ' < "$list")
+    printf "Packages added by the previous installation:\n  %s\n\n" "$pkgs"
+    if ! ask_yn "Reinstall them now?" "y"; then
+        log_info "Skipped. The list stays at ${list}."
+        return 0
+    fi
+
+    pkg_update
+    if pkg_install "$pkgs" "previous packages"; then
+        mv "$list" "${list}.done"
+        return 0
+    fi
+
+    log_warn "Batch install failed - retrying one package at a time."
+    local pkg failed=""
+    for pkg in $pkgs; do
+        pkg_install "$pkg" "$pkg" || failed="${failed} ${pkg}"
+    done
+    if [ -z "$failed" ]; then
+        mv "$list" "${list}.done"
+        log_ok "All previous packages reinstalled."
+    else
+        log_warn "Could not reinstall:${failed}"
+        log_warn "The list stays at ${list}. Check log: ${LOG_FILE}"
+    fi
 }

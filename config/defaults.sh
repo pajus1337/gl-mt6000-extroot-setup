@@ -1,14 +1,15 @@
 #!/bin/sh
 # Project-wide defaults and constants
-# Target: Vanilla OpenWrt 25.12.3 (r32912-6639b15f62) on GL-MT6000 (Flint 2)
+# Target: Vanilla OpenWrt 25.12.x on GL-MT6000 (Flint 2)
 
 TOOL_NAME="GL-MT6000 Setup Tool"
-TOOL_VERSION="2.0.0"
+TOOL_VERSION="2.1.0"
 
 STORAGE_MOUNT_POINT="/mnt/storage"
 GL_SETUP_STATE_DIR="etc/gl-setup"   # relative to overlay root (sda1/upper/)
 STATE_FILE_NAME="state"
 CONFIG_FILE_NAME="services.conf"
+PACKAGES_FILE_NAME="packages-to-restore"   # written by Phase 3, read by Phase 2
 LOG_FILE="/tmp/gl-setup.log"
 
 # Base packages required before reboot (vanilla OpenWrt 25.12.3)

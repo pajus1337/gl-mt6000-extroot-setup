@@ -14,9 +14,30 @@ _fstab_section_by_uuid() {
         | cut -d. -f1-2
 }
 
+# Remove mount entries for a target that point at a different UUID.
+# Left behind when a partition is reformatted (new UUID); two entries for the
+# same target make block try a device that no longer exists.
+_uci_remove_stale_by_target() {
+    local target="$1" keep_uuid="$2"
+    local indices i entry_uuid
+    indices=$(uci show fstab 2>/dev/null \
+        | grep "target='${target}'" \
+        | grep -oE '@mount\[[0-9]+\]' \
+        | grep -oE '[0-9]+' \
+        | sort -rn)
+    for i in $indices; do
+        entry_uuid=$(uci -q get "fstab.@mount[${i}].uuid")
+        [ "$entry_uuid" = "$keep_uuid" ] && continue
+        log_info "Removing stale fstab entry for ${target} (UUID: ${entry_uuid:-none})."
+        uci delete "fstab.@mount[${i}]" 2>/dev/null || true
+    done
+}
+
 # Add or update a fstab mount entry.
 _uci_set_mount() {
     local uuid="$1" target="$2" fstype="$3" opts="$4"
+
+    _uci_remove_stale_by_target "$target" "$uuid"
 
     local section
     section=$(_fstab_section_by_uuid "$uuid")
@@ -109,30 +130,7 @@ setup_extroot() {
     run_cmd mount -t ext4 "$part" "$TMP_EXTROOT_MOUNT" \
         || die "Cannot mount ${part} to ${TMP_EXTROOT_MOUNT}."
 
-    log_info "Copying current /overlay to ${part} (this may take a moment)..."
-    run_cmd_verbose tar -C /overlay -cf - . | tar -C "$TMP_EXTROOT_MOUNT" -xf -
-
-    # block-mount validates upper/etc/.extroot-uuid against the UUID of the device
-    # currently mounted at /overlay. On vanilla OpenWrt this is an eMMC partition.
-    # Must NOT use sda1's UUID — that's only for the fstab entry.
-    local overlay_src overlay_uuid
-    overlay_src=$(grep " /overlay " /proc/mounts | cut -d' ' -f1)
-    overlay_uuid=""
-    [ -n "$overlay_src" ] && overlay_uuid=$(get_uuid "$overlay_src")
-
-    if [ -n "$overlay_uuid" ]; then
-        mkdir -p "${TMP_EXTROOT_MOUNT}/upper/etc"
-        printf "%s\n" "$overlay_uuid" > "${TMP_EXTROOT_MOUNT}/upper/etc/.extroot-uuid"
-        log_info "Overlay UUID (${overlay_uuid}) written to upper/etc/.extroot-uuid"
-    else
-        log_warn "Cannot determine overlay device UUID — upper/etc/.extroot-uuid not written."
-        log_warn "Extroot UUID validation will be skipped by block-mount."
-    fi
-
-    # Set overlay state to FS_PENDING (1) so mount_root activates extroot.
-    # tar-copying the current overlay copies .fs_state -> 2 (FS_DONE = active),
-    # which mount_extroot() skips. Must be 1 (FS_PENDING) to trigger activation.
-    ln -sf 1 "${TMP_EXTROOT_MOUNT}/.fs_state"
+    populate_extroot "$TMP_EXTROOT_MOUNT"
 
     # Write service config into overlay upper layer so Phase 2 can read it
     local state_dir="${TMP_EXTROOT_MOUNT}/upper/${GL_SETUP_STATE_DIR}"
@@ -145,6 +143,60 @@ setup_extroot() {
     # Configure fstab
     _uci_set_mount "$uuid" "/overlay" "ext4" "rw,noatime"
     log_ok "Extroot configured (UUID: ${uuid})."
+}
+
+# Copy the running overlay (internal eMMC) onto a mounted extroot partition
+# and mark it for activation on the next boot.
+#
+# Note on .extroot-uuid: fstools (block.c, check_extroot) only validates the
+# root device UUID when <extroot>/etc/.extroot-default exists, and it looks at
+# the top of the partition, not inside upper/. Nothing needs to be written.
+populate_extroot() {
+    local mnt="$1"
+
+    log_info "Copying current /overlay to the extroot partition (this may take a moment)..."
+    run_cmd_verbose tar -C /overlay -cf - . | tar -C "$mnt" -xf -
+
+    # Set overlay state to FS_PENDING (1) so mount_root activates extroot.
+    # tar-copying the current overlay copies .fs_state -> 2 (FS_DONE = active),
+    # which mount_extroot() skips. Must be 1 (FS_PENDING) to trigger activation.
+    ln -sf 1 "${mnt}/.fs_state"
+}
+
+# Move the overlay of a previous installation out of the way so a fresh copy
+# can take its place. After a firmware upgrade the old upper is unusable as-is:
+# its apk database (lib/apk/db) shadows the new ROM's, /etc/apk/world pins the
+# old kernel, and its kmods are built for the old kernel. Kept for rollback.
+# Prints the archive suffix on stdout.
+archive_old_overlay() {
+    local mnt="$1"
+    local suffix kver
+
+    kver=$(ls "${mnt}/upper/lib/modules" 2>/dev/null | head -1)
+    suffix="${kver:-unknown}.$(date +%Y%m%d-%H%M%S)"
+
+    mv "${mnt}/upper" "${mnt}/upper.${suffix}" || return 1
+    if [ -d "${mnt}/work" ]; then
+        mv "${mnt}/work" "${mnt}/work.${suffix}" || return 1
+    fi
+    rm -f "${mnt}/.fs_state"
+    printf "%s" "$suffix"
+}
+
+# Write the packages a previous installation had added on top of its ROM.
+# Version pins (name=version) are stripped; kernel, libc and base-files are
+# tied to the image and never reinstalled by hand. Phase 2 offers to
+# reinstall whatever the new image does not already provide.
+save_user_packages() {
+    local old_world="$1" out="$2"
+    local rom_names="/tmp/gl-setup-rom-world.$$"
+    [ -f "$old_world" ] || return 1
+    sed 's/[=<>~].*$//' /rom/etc/apk/world > "$rom_names" 2>/dev/null
+    sed 's/[=<>~].*$//' "$old_world" \
+        | grep -vxE 'kernel|libc|base-files' \
+        | grep -vxF -f "$rom_names" \
+        | sort -u > "$out"
+    rm -f "$rom_names"
 }
 
 # Save the selected optional services to a config file readable in Phase 2.

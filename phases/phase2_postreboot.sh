@@ -11,7 +11,7 @@ run_phase2() {
     printf "Log file: ${C_DIM}%s${C_RESET}\n\n" "$LOG_FILE"
 
     # ── 1. Verify extroot ──────────────────────────────────────────────────────
-    header "Step 1/5 — Extroot Verification"
+    header "Step 1/6 - Extroot Verification"
 
     if is_extroot_active; then
         local overlay_dev
@@ -33,7 +33,7 @@ run_phase2() {
     log_info "Free space on /overlay: ${overlay_free:-?} MB"
 
     # ── 2. Load service config ─────────────────────────────────────────────────
-    header "Step 2/5 — Loading Configuration"
+    header "Step 2/6 - Loading Configuration"
     detect_firmware
     load_service_config
 
@@ -45,15 +45,19 @@ run_phase2() {
     log_info "USB device: ${USB_DEV} (${PART1}, ${PART2}, ${PART3})"
 
     # ── 3. Swap ────────────────────────────────────────────────────────────────
-    header "Step 3/5 — Swap"
+    header "Step 3/6 - Swap"
     setup_swap "$PART2"
 
     # ── 4. Storage mount ───────────────────────────────────────────────────────
-    header "Step 4/5 — Storage"
+    header "Step 4/6 - Storage"
     setup_storage "$PART3"
 
-    # ── 5. Optional services ───────────────────────────────────────────────────
-    header "Step 5/5 — Optional Services"
+    # ── 5. Packages from a previous installation (after an upgrade) ───────────
+    header "Step 5/6 - Packages From Previous Installation"
+    restore_user_packages
+
+    # ── 6. Optional services ───────────────────────────────────────────────────
+    header "Step 6/6 - Optional Services"
 
     local any_service=0
     for flag in OPT_SAMBA OPT_DOCKER OPT_ADGUARD OPT_TRANSMISSION OPT_WIREGUARD; do
