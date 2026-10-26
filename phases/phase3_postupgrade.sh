@@ -12,7 +12,7 @@
 run_phase3() {
     printf "\n${C_BOLD}${C_CYAN}"
     printf "╔══════════════════════════════════════════════════════════╗\n"
-    printf "║         GL-MT6000 Setup Tool — Post-Upgrade Recovery    ║\n"
+    printf "║         GL-MT6000 Setup Tool - Post-Upgrade Recovery    ║\n"
     printf "║         Restoring extroot after firmware upgrade        ║\n"
     printf "╚══════════════════════════════════════════════════════════╝\n"
     printf "${C_RESET}\n"
@@ -81,7 +81,7 @@ run_phase3() {
 
     umount "$_mp" 2>/dev/null || true
 
-    [ -n "$_sda1_uuid" ] || die "Cannot read UUID of /dev/sda1 — filesystem may be damaged."
+    [ -n "$_sda1_uuid" ] || die "Cannot read UUID of /dev/sda1 - filesystem may be damaged."
 
     log_info "sda1 UUID : ${_sda1_uuid}"
     [ -n "$_sda3_uuid" ] && log_info "sda3 UUID : ${_sda3_uuid}"
@@ -99,7 +99,7 @@ run_phase3() {
         cp "$_hook" /lib/preinit/79_wait_for_extroot
         log_ok "Preinit USB wait hook installed to /lib/preinit/."
     else
-        log_warn "Hook not found at ${_hook} — USB enumeration may be slow on next boot."
+        log_warn "Hook not found at ${_hook} - USB enumeration may be slow on next boot."
     fi
 
     # ── Step 3: Re-pivot extroot onto a fresh overlay ─────────────────────────

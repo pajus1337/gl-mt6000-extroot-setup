@@ -203,7 +203,7 @@ save_user_packages() {
 save_service_config() {
     local file="$1"
     cat > "$file" <<EOF
-# GL-MT6000 Setup Tool — service selections (auto-generated)
+# GL-MT6000 Setup Tool - service selections (auto-generated)
 OPT_SAMBA=${OPT_SAMBA:-0}
 OPT_DOCKER=${OPT_DOCKER:-0}
 OPT_PORTAINER=${OPT_PORTAINER:-0}
@@ -234,7 +234,7 @@ setup_swap() {
     log_step "Setting up swap on ${part}"
 
     if is_swap_active "$part"; then
-        log_ok "Swap on ${part} is already active — skipping."
+        log_ok "Swap on ${part} is already active - skipping."
         return 0
     fi
 
@@ -244,14 +244,14 @@ setup_swap() {
     _uci_set_swap_by_dev "$part"
 
     # Activate immediately (survives reboot via fstab)
-    run_cmd swapon "$part" || log_warn "swapon failed — swap will activate after next reboot."
+    run_cmd swapon "$part" || log_warn "swapon failed - swap will activate after next reboot."
 
     if is_swap_active "$part"; then
         local swap_kb
         swap_kb=$(grep "^${part}" /proc/swaps | awk '{print $3}')
         log_ok "Swap active on ${part} (${swap_kb} kB)."
     else
-        log_warn "Swap not active after swapon — will activate on next reboot via fstab."
+        log_warn "Swap not active after swapon - will activate on next reboot via fstab."
     fi
 }
 
@@ -263,7 +263,7 @@ setup_storage() {
     log_step "Setting up storage mount on ${part} → ${STORAGE_MOUNT_POINT}"
 
     if is_storage_mounted; then
-        log_ok "${STORAGE_MOUNT_POINT} is already mounted — skipping."
+        log_ok "${STORAGE_MOUNT_POINT} is already mounted - skipping."
         return 0
     fi
 
@@ -293,7 +293,7 @@ configure_samba() {
     local share_dir="${STORAGE_MOUNT_POINT}/shared"
     mkdir -p "$share_dir"
 
-    # Package install does not create /etc/config/samba4 — uci add fails without it.
+    # Package install does not create /etc/config/samba4 - uci add fails without it.
     if [ ! -f /etc/config/samba4 ]; then
         cat > /etc/config/samba4 <<'EOF'
 config samba
@@ -315,7 +315,7 @@ EOF
         uci commit samba4
         log_ok "Samba share configured at ${share_dir}."
     else
-        log_ok "Samba share already configured — skipping."
+        log_ok "Samba share already configured - skipping."
     fi
     /etc/init.d/samba4 enable 2>/dev/null && /etc/init.d/samba4 start 2>/dev/null || true
 }
@@ -327,7 +327,7 @@ configure_docker() {
 
     # The dockerd init script builds its runtime config from UCI
     # (/etc/config/dockerd → /tmp/dockerd/daemon.json) and only looks at
-    # /etc/docker/daemon.json if `alt_config_file` is explicitly set — which
+    # /etc/docker/daemon.json if `alt_config_file` is explicitly set - which
     # it isn't. Writing data-root to /etc/docker/daemon.json is silently
     # ignored, so Docker keeps its default /opt/docker/, which lives on the
     # small root overlay instead of the storage partition. Confirmed live:
@@ -368,12 +368,12 @@ _check_docker_root() {
     fi
 }
 
-# configure_docker_fw4 — dockerd's own init script auto-creates a 'docker'
+# configure_docker_fw4 - dockerd's own init script auto-creates a 'docker'
 # network interface/bridge device and firewall zone the first time it starts
 # (see uciadd() in /etc/init.d/dockerd), but leaves the zone without
 # masquerade or a forwarding rule to wan. Combined with iptables='0' above
 # (Docker no longer adds its own NAT either), containers have no route out
-# until this runs — verified live: 100% ping loss before, 0% after.
+# until this runs - verified live: 100% ping loss before, 0% after.
 configure_docker_fw4() {
     local tries=0
     while ! uci -q get firewall.docker >/dev/null 2>&1 && [ "$tries" -lt 10 ]; do
@@ -381,7 +381,7 @@ configure_docker_fw4() {
         tries=$(( tries + 1 ))
     done
     if ! uci -q get firewall.docker >/dev/null 2>&1; then
-        log_warn "Firewall zone 'docker' not found after starting dockerd — skipping fw4 patch."
+        log_warn "Firewall zone 'docker' not found after starting dockerd - skipping fw4 patch."
         log_warn "Run this module again after Docker has started at least once."
         return 0
     fi
@@ -415,7 +415,7 @@ configure_portainer() {
     done
     printf "\n"
     if ! docker info >/dev/null 2>&1; then
-        log_warn "Docker daemon not ready — Portainer skipped. Run manually after Docker starts."
+        log_warn "Docker daemon not ready - Portainer skipped. Run manually after Docker starts."
         return 0
     fi
     # A container kept on the storage partition (e.g. after a firmware
@@ -478,7 +478,7 @@ configure_transmission() {
     mkdir -p "$dl_dir"
 
     # Package install does not create /etc/config/transmission.
-    # Always write — config is minimal and ours; named section required by init script.
+    # Always write - config is minimal and ours; named section required by init script.
     cat > /etc/config/transmission <<EOF
 config transmission 'transmission'
 	option enabled 1

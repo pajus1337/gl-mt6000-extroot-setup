@@ -1,7 +1,7 @@
 #!/bin/sh
 # User interaction: prompts, menus, confirmations, countdown
 # Requires: lib/common.sh (colors)
-# Ash compatible — no bash-isms
+# Ash compatible - no bash-isms
 
 # Ask a yes/no question. Returns 0 for yes, 1 for no.
 # Usage: ask_yn "Question" [default: y|n]
@@ -138,7 +138,7 @@ ask_optional_services() {
     ask_yn "WireGuard VPN (kernel module + tools)" "n" && OPT_WIREGUARD=1 || OPT_WIREGUARD=0
 }
 
-# Helper for print_service_summary — defined at top-level (ash limitation)
+# Helper for print_service_summary - defined at top-level (ash limitation)
 _print_svc() {
     local label="$1" val="$2"
     if [ "$val" = "1" ]; then

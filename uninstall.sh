@@ -1,5 +1,5 @@
 #!/bin/sh
-# GL-MT6000 Setup Tool — Uninstaller
+# GL-MT6000 Setup Tool - Uninstaller
 # Reverses changes made by setup.sh (fstab entries, mounts, optional services)
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -12,7 +12,7 @@ require_root
 
 printf "\n${C_BOLD}${C_YELLOW}"
 printf "╔══════════════════════════════════════════════════════════╗\n"
-printf "║         GL-MT6000 Setup Tool — Uninstaller              ║\n"
+printf "║         GL-MT6000 Setup Tool - Uninstaller              ║\n"
 printf "╚══════════════════════════════════════════════════════════╝\n"
 printf "${C_RESET}\n"
 
@@ -69,7 +69,7 @@ log_step "Unmounting storage"
 # mountpoint(1) does not exist on OpenWrt 25.12, use /proc/mounts instead.
 if is_storage_mounted; then
     umount "$STORAGE_MOUNT_POINT" && log_ok "${STORAGE_MOUNT_POINT} unmounted." \
-        || log_warn "Could not unmount ${STORAGE_MOUNT_POINT} — may be in use."
+        || log_warn "Could not unmount ${STORAGE_MOUNT_POINT} - may be in use."
 else
     log_info "${STORAGE_MOUNT_POINT} is not mounted."
 fi

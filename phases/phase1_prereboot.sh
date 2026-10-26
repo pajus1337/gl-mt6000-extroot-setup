@@ -1,22 +1,22 @@
 #!/bin/sh
-# Phase 1 — Pre-reboot: system check, partitions, extroot configuration
+# Phase 1 - Pre-reboot: system check, partitions, extroot configuration
 
 run_phase1() {
     printf "\n${C_BOLD}${C_CYAN}"
     printf "╔══════════════════════════════════════════════════════════╗\n"
-    printf "║         GL-MT6000 Setup Tool — Phase 1 / 2              ║\n"
+    printf "║         GL-MT6000 Setup Tool - Phase 1 / 2              ║\n"
     printf "║         System & Disk Setup (pre-reboot)                ║\n"
     printf "╚══════════════════════════════════════════════════════════╝\n"
     printf "${C_RESET}\n"
     printf "Log file: ${C_DIM}%s${C_RESET}\n\n" "$LOG_FILE"
 
     # ── 1. System check ────────────────────────────────────────────────────────
-    header "Step 1/6 — System Check"
+    header "Step 1/6 - System Check"
     detect_firmware
     # USB modules already loaded by setup.sh preamble (ensure_usb_modules).
 
     # ── 2. USB device selection ────────────────────────────────────────────────
-    header "Step 2/6 — USB Device"
+    header "Step 2/6 - USB Device"
 
     if [ -n "$CLI_USB_DEV" ]; then
         # Explicit device passed via command-line argument
@@ -37,15 +37,15 @@ run_phase1() {
     fi
 
     # ── 3. Partition validation / formatting ───────────────────────────────────
-    header "Step 3/6 — Partitions"
+    header "Step 3/6 - Partitions"
     ensure_partitions
 
     # ── 4. Base package installation ───────────────────────────────────────────
-    header "Step 4/6 — Base Packages"
+    header "Step 4/6 - Base Packages"
     install_base_packages
 
     # ── 5. Optional service selection ─────────────────────────────────────────
-    header "Step 5/6 — Optional Services"
+    header "Step 5/6 - Optional Services"
     ask_optional_services
     print_service_summary
 
@@ -56,7 +56,7 @@ run_phase1() {
     fi
 
     # ── 6. Extroot setup + upgrade resilience ─────────────────────────────────
-    header "Step 6/6 — Extroot Configuration"
+    header "Step 6/6 - Extroot Configuration"
     setup_extroot "$PART1"
     setup_sysupgrade_conf
 
@@ -65,7 +65,7 @@ run_phase1() {
     printf "\n${C_GREEN}${C_BOLD}Phase 1 complete.${C_RESET}\n"
     printf "  • Extroot configured on %s\n" "$PART1"
     printf "  • Service selections saved to extroot\n"
-    printf "  • After reboot, run this script again — it will\n"
+    printf "  • After reboot, run this script again - it will\n"
     printf "    automatically continue with Phase 2.\n\n"
     log_info "Phase 1 complete."
 

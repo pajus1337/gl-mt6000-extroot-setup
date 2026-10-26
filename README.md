@@ -2,7 +2,7 @@
 
 Automated setup script for the **GL-MT6000 (Flint 2)** running **vanilla OpenWrt 25.12.x**.
 
-Automates extroot (USB overlay), swap, storage mounting, and optional services —
+Automates extroot (USB overlay), swap, storage mounting, and optional services -
 in a multi-phase, reboot-safe, idempotent flow that also handles post-upgrade recovery.
 
 ---
@@ -11,12 +11,12 @@ in a multi-phase, reboot-safe, idempotent flow that also handles post-upgrade re
 
 | Requirement | Details |
 |-------------|---------|
-| Router      | GL.iNet GL-MT6000 (Flint 2) — 1 GB RAM, 4-core MediaTek MT7986 |
+| Router      | GL.iNet GL-MT6000 (Flint 2) - 1 GB RAM, 4-core MediaTek MT7986 |
 | Firmware    | Vanilla OpenWrt 25.12.x (tested on 25.12.3, 25.12.5 and 25.12.6) |
 | USB Drive   | Any USB 2.0/3.x drive, GPT-partitioned (256 GB recommended) |
 
 > **GL.iNet stock firmware is not supported.**  
-> Flash vanilla OpenWrt first: [OpenWrt Table of Hardware — GL-MT6000](https://openwrt.org/toh/gl.inet/gl-mt6000)
+> Flash vanilla OpenWrt first: [OpenWrt Table of Hardware - GL-MT6000](https://openwrt.org/toh/gl.inet/gl-mt6000)
 
 ### Recommended Partition Layout (GPT)
 
@@ -27,20 +27,20 @@ in a multi-phase, reboot-safe, idempotent flow that also handles post-upgrade re
 | sda3      | remainder | ext4       | Storage · Samba · Docker data |
 
 > The script can create this layout automatically if the drive is unpartitioned,
-> or work with your existing layout — formatting only what is necessary.
+> or work with your existing layout - formatting only what is necessary.
 
 ---
 
 ## Features
 
-- **Automatic phase detection** — run `./setup.sh` at any point; it figures out what to do next
-- **Phase 1** — configures extroot (USB overlay) and partitions, then reboots
-- **Phase 2** — activates swap, storage, and installs selected services
+- **Automatic phase detection** - run `./setup.sh` at any point; it figures out what to do next
+- **Phase 1** - configures extroot (USB overlay) and partitions, then reboots
+- **Phase 2** - activates swap, storage, and installs selected services
 - **Phase 3** - post-upgrade recovery: rebuilds extroot on a fresh overlay after `sysupgrade` (no reformatting, old overlay kept for rollback)
-- **Idempotent** — safe to re-run; skips already-configured steps
-- **Partition wizard** — detects existing partitions, formats only if needed (with confirmation)
-- **fstab via `uci`** — ext4 mounts by UUID; swap by device path (BusyBox `mkswap` has no `-U` flag)
-- **Docker data-root on storage** — images and volumes go to sda3, not extroot
+- **Idempotent** - safe to re-run; skips already-configured steps
+- **Partition wizard** - detects existing partitions, formats only if needed (with confirmation)
+- **fstab via `uci`** - ext4 mounts by UUID; swap by device path (BusyBox `mkswap` has no `-U` flag)
+- **Docker data-root on storage** - images and volumes go to sda3, not extroot
 - **Upgrade resilience** - writes `/etc/sysupgrade.conf` to preserve the preinit hook and fstab, and reinstalls the packages you had added after an upgrade
 - **Optional services** (selected interactively in Phase 1, installed in Phase 2):
   - Samba (SMB/CIFS file sharing)
@@ -49,7 +49,7 @@ in a multi-phase, reboot-safe, idempotent flow that also handles post-upgrade re
   - AdGuard Home (DNS ad-blocking)
   - Transmission (torrent client + LuCI)
   - WireGuard VPN (kernel module + tools)
-- **Uninstaller** — reverses all fstab changes, leaves data intact
+- **Uninstaller** - reverses all fstab changes, leaves data intact
 
 ---
 
@@ -71,7 +71,7 @@ git clone https://github.com/pajus1337/gl-mt6000-extroot-setup.git
 cd gl-mt6000-extroot-setup
 chmod +x setup.sh uninstall.sh
 
-# 6. Run — phase is detected automatically
+# 6. Run - phase is detected automatically
 ./setup.sh
 # Phase 1: configures extroot, reboots
 
@@ -129,7 +129,7 @@ Phase 3 is still needed to rebuild the overlay, but there is much less to reinst
 
 ```
 gl-mt6000-extroot-setup/
-├── setup.sh                   # Entry point — auto-detects phase (1 / 2 / 3)
+├── setup.sh                   # Entry point - auto-detects phase (1 / 2 / 3)
 ├── uninstall.sh               # Reverses all changes
 ├── config/
 │   └── defaults.sh            # Package lists, size defaults, constants
@@ -144,26 +144,26 @@ gl-mt6000-extroot-setup/
 │   │                          # sysupgrade.conf resilience
 │   └── 79_wait_for_extroot    # Preinit hook: waits for USB before mount_root
 └── phases/
-    ├── phase1_prereboot.sh    # Fresh setup — pre-reboot
-    ├── phase2_postreboot.sh   # Service installation — post-reboot
-    └── phase3_postupgrade.sh  # Post-sysupgrade recovery — no reformat
+    ├── phase1_prereboot.sh    # Fresh setup - pre-reboot
+    ├── phase2_postreboot.sh   # Service installation - post-reboot
+    └── phase3_postupgrade.sh  # Post-sysupgrade recovery - no reformat
 ```
 
 ---
 
 ## Phase Details
 
-### Phase 1 — Pre-reboot (fresh setup)
+### Phase 1 - Pre-reboot (fresh setup)
 
 1. Check OpenWrt version and device model
-2. Load USB storage modules (`usb-storage` + `uas`) — required for USB 3.0 on GL-MT6000
+2. Load USB storage modules (`usb-storage` + `uas`) - required for USB 3.0 on GL-MT6000
 3. Detect or prompt for USB device
-4. Validate partitions — create GPT layout and/or format only what is needed
+4. Validate partitions - create GPT layout and/or format only what is needed
 5. Install base packages (`block-mount`, `kmod-fs-ext4`, `e2fsprogs`, …)
 6. Select optional services to install later
 7. Copy `/overlay` to sda1, configure fstab via UCI (UUID-based), install preinit hook, reboot
 
-### Phase 2 — Post-reboot (service installation)
+### Phase 2 - Post-reboot (service installation)
 
 1. Verify extroot is active (exits with diagnostics if not)
 2. Activate swap (sda2) and register in fstab
@@ -174,7 +174,7 @@ gl-mt6000-extroot-setup/
    (preinit hook, fstab, package snapshot) for upgrade resilience
 7. Print final system status report
 
-### Phase 3 — Post-upgrade recovery
+### Phase 3 - Post-upgrade recovery
 
 Triggered automatically when `./setup.sh` detects a previous extroot on sda1
 that is not currently mounted (typical state after `sysupgrade`).
@@ -201,7 +201,7 @@ The GL-MT6000 USB controller enumerates ~4 s after preinit starts. The preinit h
 `/lib/preinit/79_wait_for_extroot` waits for `/dev/sda1` before `mount_root` proceeds.
 
 Additionally, **`kmod-usb-storage-uas`** is required for USB 3.0 (SuperSpeed) on this
-kernel — `kmod-usb-storage` alone does not bind SuperSpeed devices. The script installs
+kernel - `kmod-usb-storage` alone does not bind SuperSpeed devices. The script installs
 and loads both modules automatically.
 
 ---
@@ -233,14 +233,14 @@ how to finish: unplug the USB drive, reboot, then delete that entry with `uci`.
 | Vanilla OpenWrt | 25.12.x   | Expected |
 | GL.iNet stock   | any       | Not supported |
 
-Shell: `/bin/sh` — BusyBox ash compatible, no bash required.
+Shell: `/bin/sh` - BusyBox ash compatible, no bash required.
 
 ---
 
 ## Contributing
 
 Issues and pull requests are welcome.
-Please test on a real device before submitting — or clearly mark as untested.
+Please test on a real device before submitting - or clearly mark as untested.
 
 ---
 

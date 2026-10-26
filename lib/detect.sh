@@ -27,7 +27,7 @@ ensure_usb_modules() {
         _changed=1
     fi
 
-    # uas (USB Attached SCSI) is required for USB 3.0 SuperSpeed on GL-MT6000 —
+    # uas (USB Attached SCSI) is required for USB 3.0 SuperSpeed on GL-MT6000 -
     # usb-storage alone does not bind SuperSpeed devices on this kernel.
     if ! grep -q "^uas " /proc/modules 2>/dev/null; then
         if ! modprobe uas 2>/dev/null; then
@@ -136,7 +136,7 @@ detect_firmware() {
 
     case "$OPENWRT_VERSION" in
         25.*) ;;
-        *) log_warn "Tested on OpenWrt 25.12.3 — running '${OPENWRT_VERSION}', proceed with caution." ;;
+        *) log_warn "Tested on OpenWrt 25.12.3 - running '${OPENWRT_VERSION}', proceed with caution." ;;
     esac
 }
 

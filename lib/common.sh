@@ -68,7 +68,7 @@ run_cmd() {
 run_cmd_verbose() {
     log_debug "Running (verbose): $*"
     _log "CMD" "$*"
-    # ash has no $PIPESTATUS — capture exit status via temp file
+    # ash has no $PIPESTATUS - capture exit status via temp file
     local _ret_file="/tmp/gl-setup-ret.$$"
     { "$@" 2>&1; echo $? > "$_ret_file"; } | tee -a "${LOG_FILE:-/tmp/gl-setup.log}"
     local _ret

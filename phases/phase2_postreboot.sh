@@ -1,10 +1,10 @@
 #!/bin/sh
-# Phase 2 — Post-reboot: verify extroot, configure swap/storage, install services
+# Phase 2 - Post-reboot: verify extroot, configure swap/storage, install services
 
 run_phase2() {
     printf "\n${C_BOLD}${C_CYAN}"
     printf "╔══════════════════════════════════════════════════════════╗\n"
-    printf "║         GL-MT6000 Setup Tool — Phase 2 / 2              ║\n"
+    printf "║         GL-MT6000 Setup Tool - Phase 2 / 2              ║\n"
     printf "║         Services & Storage Setup (post-reboot)          ║\n"
     printf "╚══════════════════════════════════════════════════════════╝\n"
     printf "${C_RESET}\n"
@@ -66,7 +66,7 @@ run_phase2() {
     done
 
     if [ "$any_service" = "0" ]; then
-        log_info "No optional services selected — skipping."
+        log_info "No optional services selected - skipping."
     else
         pkg_update
         install_optional_services

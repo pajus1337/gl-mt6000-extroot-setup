@@ -1,5 +1,5 @@
 #!/bin/sh
-# GL-MT6000 Setup Tool — Main entry point
+# GL-MT6000 Setup Tool - Main entry point
 # Usage: ./setup.sh [/dev/sdX]
 #
 # Requires vanilla OpenWrt 25.12.3+ on the GL-MT6000 (Flint 2).
@@ -65,10 +65,10 @@ fi
 
 # ── Phase routing ──────────────────────────────────────────────────────────────
 if is_extroot_active; then
-    log_info "Extroot is active — resuming Phase 2."
+    log_info "Extroot is active - resuming Phase 2."
     run_phase2
 elif is_post_upgrade; then
-    log_info "Post-upgrade state detected — previous extroot found on sda1."
+    log_info "Post-upgrade state detected - previous extroot found on sda1."
     run_phase3
 elif is_extroot_configured; then
     printf "\n${C_YELLOW}[WARN]${C_RESET} Extroot is configured in fstab but NOT currently active.\n"

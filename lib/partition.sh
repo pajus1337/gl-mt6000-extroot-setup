@@ -132,7 +132,7 @@ ensure_partitions() {
         create_gpt_layout "$USB_DEV"
         need_format_p1=1; need_format_p2=1; need_format_p3=1
     else
-        # Partitions exist — check filesystems
+        # Partitions exist - check filesystems
         verify_fs "$PART1" "ext4" || need_format_p1=1
         verify_fs "$PART2" "swap" || need_format_p2=1
         verify_fs "$PART3" "ext4" || need_format_p3=1
@@ -144,7 +144,7 @@ ensure_partitions() {
         ask_yn "Format ${PART1} as ext4 (extroot)? Data will be lost." "n" || die "Aborted."
         format_extroot "$PART1"
     else
-        log_ok "${PART1} already ext4 — skipping format."
+        log_ok "${PART1} already ext4 - skipping format."
         # Ensure reserved blocks are removed in case partition was reused
         log_info "Ensuring reserved blocks = 0%% on ${PART1}..."
         tune2fs -m 0 "$PART1" >> "$LOG_FILE" 2>&1 || true
@@ -155,7 +155,7 @@ ensure_partitions() {
         ask_yn "Format ${PART2} as swap? Data will be lost." "n" || die "Aborted."
         format_swap "$PART2"
     else
-        log_ok "${PART2} already swap — skipping format."
+        log_ok "${PART2} already swap - skipping format."
     fi
 
     if [ "$need_format_p3" = "1" ]; then
@@ -163,7 +163,7 @@ ensure_partitions() {
         ask_yn "Format ${PART3} as ext4 (storage)? Data will be lost." "n" || die "Aborted."
         format_storage "$PART3"
     else
-        log_ok "${PART3} already ext4 — skipping format."
+        log_ok "${PART3} already ext4 - skipping format."
         log_info "Ensuring reserved blocks = 0%% on ${PART3}..."
         tune2fs -m 0 "$PART3" >> "$LOG_FILE" 2>&1 || true
     fi
