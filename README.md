@@ -170,7 +170,8 @@ gl-mt6000-extroot-setup/
 3. Mount storage (sda3 → `/mnt/storage`) and register in fstab
 4. After an upgrade: offer to reinstall the packages the previous installation had added
 5. Install and configure selected optional services
-6. Write `/etc/sysupgrade.conf` for upgrade resilience
+6. Save a package snapshot to `/etc/gl-setup/packages-snapshot` and write `/etc/sysupgrade.conf`
+   (preinit hook, fstab, package snapshot) for upgrade resilience
 7. Print final system status report
 
 ### Phase 3 — Post-upgrade recovery
@@ -179,7 +180,8 @@ Triggered automatically when `./setup.sh` detects a previous extroot on sda1
 that is not currently mounted (typical state after `sysupgrade`).
 
 1. Mount sda1 read-only, read previous service selections and the list of packages
-   the previous installation had added on top of its firmware
+   the previous installation had added on top of its firmware (falls back to the
+   package snapshot kept across the upgrade, see below)
 2. Install base packages (`block-mount`, ext4 and USB storage modules) on the internal flash,
    restore the preinit hook
 3. Set swap and storage fstab entries, archive the old overlay on sda1
@@ -214,6 +216,10 @@ and loads both modules automatically.
 
 Removes fstab entries, deactivates swap, unmounts storage.
 **Data on the USB drive is not touched.**
+
+While extroot is active, the `/overlay` entry that activates it lives in the fstab on the
+internal flash, which cannot be edited from the running system. The uninstaller tells you
+how to finish: unplug the USB drive, reboot, then delete that entry with `uci`.
 
 ---
 
