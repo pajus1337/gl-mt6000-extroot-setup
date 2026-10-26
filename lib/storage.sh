@@ -340,10 +340,32 @@ configure_docker() {
     uci commit dockerd
     log_ok "Docker data-root → ${docker_data} (via UCI, iptables management disabled)."
 
-    /etc/init.d/docker enable 2>/dev/null
-    /etc/init.d/docker start 2>/dev/null || true
+    # The service is "dockerd" (there is no /etc/init.d/docker). The package
+    # post-install has already started it, and on 25.12.6 that first instance
+    # came up on /var/lib/docker (tmpfs) despite data_root being set, so a
+    # restart is required for data_root to take effect.
+    /etc/init.d/dockerd enable 2>/dev/null
+    /etc/init.d/dockerd restart 2>/dev/null || true
+    _check_docker_root "$docker_data"
 
     configure_docker_fw4
+}
+
+# Warn if the running daemon does not use the expected data root.
+_check_docker_root() {
+    local want="$1" root="" _i=0
+    while [ $_i -lt 15 ]; do
+        root=$(docker info --format '{{.DockerRootDir}}' 2>/dev/null)
+        [ -n "$root" ] && break
+        sleep 1
+        _i=$(( _i + 1 ))
+    done
+    if [ "${root%/}" = "${want%/}" ]; then
+        log_ok "Docker daemon running with data-root ${root}."
+    else
+        log_warn "Docker daemon reports data-root '${root:-unknown}', expected ${want}."
+        log_warn "Run: /etc/init.d/dockerd restart"
+    fi
 }
 
 # configure_docker_fw4 — dockerd's own init script auto-creates a 'docker'
@@ -396,20 +418,28 @@ configure_portainer() {
         log_warn "Docker daemon not ready — Portainer skipped. Run manually after Docker starts."
         return 0
     fi
-    if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^portainer$"; then
-        docker volume create portainer_data >> "$LOG_FILE" 2>&1
-        docker run -d \
-            --name portainer \
-            --restart always \
-            -p 9443:9443 \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            -v portainer_data:/data \
-            portainer/portainer-ce:latest >> "$LOG_FILE" 2>&1 \
-            && log_ok "Portainer CE started on port 9443." \
-            || log_warn "Portainer startup failed — check Docker status."
-    else
-        log_ok "Portainer container already running — skipping."
+    # A container kept on the storage partition (e.g. after a firmware
+    # upgrade) only needs to be started; "docker run" would fail on the name.
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^portainer$"; then
+        log_ok "Portainer container already running - skipping."
+        return 0
     fi
+    if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^portainer$"; then
+        docker start portainer >> "$LOG_FILE" 2>&1 \
+            && log_ok "Existing Portainer container started on port 9443." \
+            || log_warn "Existing Portainer container failed to start - check Docker status."
+        return 0
+    fi
+    docker volume create portainer_data >> "$LOG_FILE" 2>&1
+    docker run -d \
+        --name portainer \
+        --restart always \
+        -p 9443:9443 \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        -v portainer_data:/data \
+        portainer/portainer-ce:latest >> "$LOG_FILE" 2>&1 \
+        && log_ok "Portainer CE started on port 9443." \
+        || log_warn "Portainer startup failed - check Docker status."
 }
 
 # Add gl-setup's critical files to /etc/sysupgrade.conf so they survive a
