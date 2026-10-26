@@ -36,12 +36,12 @@ in a multi-phase, reboot-safe, idempotent flow that also handles post-upgrade re
 - **Automatic phase detection** — run `./setup.sh` at any point; it figures out what to do next
 - **Phase 1** — configures extroot (USB overlay) and partitions, then reboots
 - **Phase 2** — activates swap, storage, and installs selected services
-- **Phase 3** — post-upgrade recovery: restores extroot without reformatting after `sysupgrade`
+- **Phase 3** - post-upgrade recovery: rebuilds extroot on a fresh overlay after `sysupgrade` (no reformatting, old overlay kept for rollback)
 - **Idempotent** — safe to re-run; skips already-configured steps
 - **Partition wizard** — detects existing partitions, formats only if needed (with confirmation)
 - **fstab via `uci`** — ext4 mounts by UUID; swap by device path (BusyBox `mkswap` has no `-U` flag)
 - **Docker data-root on storage** — images and volumes go to sda3, not extroot
-- **Upgrade resilience** — writes `/etc/sysupgrade.conf` to preserve the preinit hook and fstab across future firmware upgrades
+- **Upgrade resilience** - writes `/etc/sysupgrade.conf` to preserve the preinit hook and fstab, and reinstalls the packages you had added after an upgrade
 - **Optional services** (selected interactively in Phase 1, installed in Phase 2):
   - Samba (SMB/CIFS file sharing)
   - Docker + docker-compose + LuCI app
@@ -91,32 +91,37 @@ cd gl-mt6000-extroot-setup
 
 ## After a Firmware Upgrade
 
-OpenWrt `sysupgrade` replaces the base firmware. Your USB data (sda1 extroot, sda3 storage/Samba files) **is always preserved** — it lives on the USB drive, not the flash.
+OpenWrt `sysupgrade` replaces the base firmware. Your USB data (sda1 extroot, sda3 storage/Samba files) **is always preserved**: it lives on the USB drive, not the flash.
 
-What is lost after upgrade:
-- Installed packages (kernel modules, services) — need reinstallation
-- The USB preinit hook (if not in `sysupgrade.conf`)
-- fstab entries (if not in `sysupgrade.conf`)
+After the upgrade the router boots from its internal flash, **without extroot**. This is expected:
 
-**The script handles this automatically.** Simply run `./setup.sh` after upgrading:
+- Every OpenWrt release so far ships a new kernel, so the kernel modules in the old overlay no longer load.
+- `block-mount`, `kmod-fs-ext4` and the USB storage modules are not part of the stock image.
+- The old overlay cannot simply be mounted again. Its package database would hide the new
+  firmware's, and `/etc/apk/world` still pins the old kernel version.
+
+**The script handles this.** Run it again after upgrading:
 
 ```sh
-# After sysupgrade — just run the script again
+# After sysupgrade (internet access needed for apk)
 cd gl-mt6000-extroot-setup
 ./setup.sh
-# Detects post-upgrade state → runs Phase 3 recovery (no disk formatting)
-# Restores extroot config + preinit hook → reboots
+# Installs block-mount + ext4/USB modules, detects the previous extroot,
+# runs Phase 3: archives the old overlay on sda1 as upper.<old-kernel>.<date>,
+# copies the current system to sda1 -> reboots
 
-# After reboot — run once more for Phase 2
+# After reboot, run once more for Phase 2
 ./setup.sh
-# Reinstalls services, done
+# Offers to reinstall the packages you had added, configures services, done
 ```
 
-Phase 3 recovery takes ~30 seconds and does not touch your data.
+Phase 3 never formats anything. Once everything works you can delete the archived
+`upper.*` and `work.*` directories from the root of sda1. Until then they let you roll
+back by flashing the previous firmware and swapping the directories back.
 
-After the first full setup (Phase 1 + 2), the script also writes `/etc/sysupgrade.conf`
-to preserve the preinit hook and fstab. Future upgrades may mount extroot automatically
-without needing Phase 3 — depending on the kernel version change.
+**Tip:** upgrading with `owut` (attended sysupgrade) builds an image that already contains
+every package you installed, including the extroot prerequisites for the new kernel.
+Phase 3 is still needed to rebuild the overlay, but there is much less to reinstall.
 
 ---
 
@@ -163,22 +168,28 @@ gl-mt6000-extroot-setup/
 1. Verify extroot is active (exits with diagnostics if not)
 2. Activate swap (sda2) and register in fstab
 3. Mount storage (sda3 → `/mnt/storage`) and register in fstab
-4. Install and configure selected optional services
-5. Write `/etc/sysupgrade.conf` for upgrade resilience
-6. Print final system status report
+4. After an upgrade: offer to reinstall the packages the previous installation had added
+5. Install and configure selected optional services
+6. Write `/etc/sysupgrade.conf` for upgrade resilience
+7. Print final system status report
 
 ### Phase 3 — Post-upgrade recovery
 
 Triggered automatically when `./setup.sh` detects a previous extroot on sda1
 that is not currently mounted (typical state after `sysupgrade`).
 
-1. Mount sda1 read-only, read previous service selections
-2. Restore preinit hook to `/lib/preinit/`
-3. Restore all fstab entries (extroot, swap, storage) via UCI
+1. Mount sda1 read-only, read previous service selections and the list of packages
+   the previous installation had added on top of its firmware
+2. Install base packages (`block-mount`, ext4 and USB storage modules) on the internal flash,
+   restore the preinit hook
+3. Set swap and storage fstab entries, archive the old overlay on sda1
+   (`upper.<old-kernel>.<date>`), copy the current system to sda1, set the extroot fstab entry
 4. Write `/etc/sysupgrade.conf`
 5. Reboot → extroot mounts → run `./setup.sh` again for Phase 2
 
-**No data is modified. No partitions are reformatted.**
+**No partitions are reformatted and nothing is deleted.** If `/dev/sda1` exists but cannot
+be inspected (no internet to install `block-mount`/ext4 support), the script stops instead
+of offering the partitioning wizard.
 
 ---
 
