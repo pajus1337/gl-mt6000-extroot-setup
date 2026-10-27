@@ -479,10 +479,13 @@ configure_transmission() {
 
     # Package install does not create /etc/config/transmission.
     # Always write - config is minimal and ours; named section required by init script.
+    # Port forwarding (NAT-PMP/UPnP) is off: behind the CG-NAT of a mobile
+    # uplink it can never succeed and fills the system log with errors.
     cat > /etc/config/transmission <<EOF
 config transmission 'transmission'
 	option enabled 1
 	option download_dir '${dl_dir}'
+	option port_forwarding_enabled 0
 EOF
     log_ok "Transmission download dir → ${dl_dir}."
     /etc/init.d/transmission enable 2>/dev/null && /etc/init.d/transmission start 2>/dev/null || true
