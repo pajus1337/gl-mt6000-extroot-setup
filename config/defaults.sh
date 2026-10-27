@@ -3,7 +3,7 @@
 # Target: Vanilla OpenWrt 25.12.x on GL-MT6000 (Flint 2)
 
 TOOL_NAME="GL-MT6000 Setup Tool"
-TOOL_VERSION="2.1.0"
+TOOL_VERSION="2.2.0"
 
 STORAGE_MOUNT_POINT="/mnt/storage"
 GL_SETUP_STATE_DIR="etc/gl-setup"   # relative to overlay root (sda1/upper/)

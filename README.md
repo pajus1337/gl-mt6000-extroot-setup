@@ -49,6 +49,7 @@ in a multi-phase, reboot-safe, idempotent flow that also handles post-upgrade re
   - AdGuard Home (DNS ad-blocking)
   - Transmission (torrent client + LuCI)
   - WireGuard VPN (kernel module + tools)
+- **Service manager** - add, remove (with a backup for rollback, or purge) and restore each optional service later, from a menu or the command line
 - **Uninstaller** - reverses all fstab changes, leaves data intact
 
 ---
@@ -130,6 +131,7 @@ Phase 3 is still needed to rebuild the overlay, but there is much less to reinst
 ```
 gl-mt6000-extroot-setup/
 ├── setup.sh                   # Entry point - auto-detects phase (1 / 2 / 3)
+├── services.sh                # Add / remove / restore optional services
 ├── uninstall.sh               # Reverses all changes
 ├── config/
 │   └── defaults.sh            # Package lists, size defaults, constants
@@ -203,6 +205,44 @@ The GL-MT6000 USB controller enumerates ~4 s after preinit starts. The preinit h
 Additionally, **`kmod-usb-storage-uas`** is required for USB 3.0 (SuperSpeed) on this
 kernel - `kmod-usb-storage` alone does not bind SuperSpeed devices. The script installs
 and loads both modules automatically.
+
+---
+
+## Managing Services
+
+Services picked in Phase 1 can be added, removed or restored later, one at a time.
+Run it without arguments for an interactive menu:
+
+```sh
+./services.sh            # or: ./setup.sh --services
+```
+
+Or use the commands directly:
+
+```sh
+./services.sh list                          # services and their state
+./services.sh add transmission              # install + configure
+./services.sh remove transmission           # remove, keep a backup
+./services.sh remove transmission --purge   # remove with config, no backup
+./services.sh backups                       # list backups
+./services.sh restore /mnt/storage/backup/gl-setup-services/<dir>
+```
+
+Services: `samba`, `docker`, `portainer`, `adguard`, `transmission`, `wireguard`.
+
+| Mode    | What happens |
+|---------|--------------|
+| remove  | Config, service state and system users are saved to `/mnt/storage/backup/gl-setup-services/<date>-<service>/`, then the service is stopped and its packages removed. `restore` reinstalls the same packages and puts the config back. |
+| purge   | Same removal, but config, state, system users (and for Docker its network interface and firewall zone) are deleted. Nothing is kept. |
+
+Both modes keep the tool's own records in sync (`services.conf` and the package snapshot),
+so a removed service does not come back after the next firmware upgrade.
+
+**User data is never deleted by default.** Docker images and volumes
+(`/mnt/storage/docker`) and Transmission downloads are only deleted in purge mode, after
+you type the service name to confirm. The Samba share (`/mnt/storage/shared`) is never
+touched. Removing Docker removes Portainer first. WireGuard is not removed while
+WireGuard interfaces are configured, so a tunnel you are connected through is not cut.
 
 ---
 

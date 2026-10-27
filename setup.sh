@@ -24,9 +24,11 @@ CLI_USB_DEV=""
 for arg in "$@"; do
     case "$arg" in
         --uninstall) exec "${SCRIPT_DIR}/uninstall.sh" ;;
+        --services)  exec "${SCRIPT_DIR}/services.sh" ;;
         --help|-h)
-            printf "Usage: %s [/dev/sdX] [--uninstall]\n" "$0"
+            printf "Usage: %s [/dev/sdX] [--services] [--uninstall]\n" "$0"
             printf "\n  /dev/sdX     Specify USB device (default: auto-detect)\n"
+            printf "  --services   Add, remove or restore optional services (menu)\n"
             printf "  --uninstall  Reverse all changes made by this tool\n\n"
             exit 0
             ;;
