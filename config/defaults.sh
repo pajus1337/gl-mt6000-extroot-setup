@@ -25,6 +25,10 @@ PKG_ADGUARD="adguardhome"
 PKG_TRANSMISSION="transmission-daemon luci-app-transmission"
 PKG_WIREGUARD="kmod-wireguard wireguard-tools"
 
+# Persistent system log (optional service "syslog")
+SYSLOG_DIR="log"           # relative to STORAGE_MOUNT_POINT
+SYSLOG_FILE_KB=51200       # logread rotates system.log to system.log.old at this size
+
 # Suggested partition layout sizes (MB) used when proposing layout to user
 SUGGEST_EXTROOT_MB=20480   # 20 GB
 SUGGEST_SWAP_MB=2048       # 2 GB

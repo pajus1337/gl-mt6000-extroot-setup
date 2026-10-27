@@ -210,6 +210,7 @@ OPT_PORTAINER=${OPT_PORTAINER:-0}
 OPT_ADGUARD=${OPT_ADGUARD:-0}
 OPT_TRANSMISSION=${OPT_TRANSMISSION:-0}
 OPT_WIREGUARD=${OPT_WIREGUARD:-0}
+OPT_SYSLOG=${OPT_SYSLOG:-0}
 STORAGE_MOUNT_POINT=${STORAGE_MOUNT_POINT}
 EOF
     log_info "Service config saved to ${file}."
@@ -470,6 +471,44 @@ setup_sysupgrade_conf() {
     else
         log_info "Upgrade resilience already configured in ${_conf}."
     fi
+}
+
+# Keep the system log in a file on the storage partition, so it survives
+# reboots and firmware upgrades (a Phase 3 re-pivot archives the old upper,
+# the storage partition is left alone). In /etc/init.d/log, log_size sizes
+# the file rotation and also the RAM ring buffer unless log_buffer_size is
+# set, so the ring is pinned to its current size first. With the logd
+# arguments unchanged, a reload only adds the logread instance and the
+# messages already in RAM are kept.
+configure_syslog() {
+    log_step "Configuring persistent system log"
+    local dir="${STORAGE_MOUNT_POINT}/${SYSLOG_DIR}" ring
+    ring=$(uci -q get system.@system[0].log_buffer_size)
+    [ -n "$ring" ] || ring=$(uci -q get system.@system[0].log_size)
+    [ -n "$ring" ] || ring=64
+    mkdir -p "$dir"
+    uci set system.@system[0].log_buffer_size="$ring"
+    uci set system.@system[0].log_file="${dir}/system.log"
+    uci set system.@system[0].log_size="$SYSLOG_FILE_KB"
+    uci commit system
+    /etc/init.d/log reload >/dev/null 2>&1
+    log_ok "System log → ${dir}/system.log (rotates to .old at $(( SYSLOG_FILE_KB / 1024 )) MB)."
+}
+
+# Back to the RAM-only log with the same ring buffer size. Log files stay.
+unconfigure_syslog() {
+    local ring
+    ring=$(uci -q get system.@system[0].log_buffer_size)
+    uci -q delete system.@system[0].log_file
+    if [ -n "$ring" ]; then
+        uci set system.@system[0].log_size="$ring"
+        uci -q delete system.@system[0].log_buffer_size
+    else
+        uci -q delete system.@system[0].log_size
+    fi
+    uci commit system
+    /etc/init.d/log reload >/dev/null 2>&1
+    log_info "System log is kept in RAM only again."
 }
 
 configure_transmission() {

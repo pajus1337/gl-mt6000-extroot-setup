@@ -49,6 +49,7 @@ in a multi-phase, reboot-safe, idempotent flow that also handles post-upgrade re
   - AdGuard Home (DNS ad-blocking)
   - Transmission (torrent client + LuCI)
   - WireGuard VPN (kernel module + tools)
+  - Persistent system log on the storage partition (`/mnt/storage/log/system.log`, survives reboots and firmware upgrades)
 - **Service manager** - add, remove (with a backup for rollback, or purge) and restore each optional service later, from a menu or the command line
 - **Uninstaller** - reverses all fstab changes, leaves data intact
 
@@ -228,7 +229,12 @@ Or use the commands directly:
 ./services.sh restore /mnt/storage/backup/gl-setup-services/<dir>
 ```
 
-Services: `samba`, `docker`, `portainer`, `adguard`, `transmission`, `wireguard`.
+Services: `samba`, `docker`, `portainer`, `adguard`, `transmission`, `wireguard`, `syslog`.
+
+`syslog` is not a package: it points the OpenWrt system log at a file on the storage
+partition (rotated to `system.log.old` at 50 MB) and keeps the RAM log buffer at its
+current size. Removing it puts the log back in RAM only; the log files stay unless you
+purge and confirm.
 
 | Mode    | What happens |
 |---------|--------------|

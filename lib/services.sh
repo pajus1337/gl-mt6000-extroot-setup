@@ -4,7 +4,7 @@
 # Requires: common.sh, detect.sh, ui.sh, packages.sh, storage.sh
 # Ash compatible - no arrays, so the service table is a set of case functions.
 
-SERVICES="samba docker portainer adguard transmission wireguard"
+SERVICES="samba docker portainer adguard transmission wireguard syslog"
 SERVICE_BACKUP_SUBDIR="backup/gl-setup-services"   # relative to STORAGE_MOUNT_POINT
 
 # ── Service table ──────────────────────────────────────────────────────────────
@@ -17,6 +17,7 @@ svc_label() {
         adguard)      printf "AdGuard Home" ;;
         transmission) printf "Transmission" ;;
         wireguard)    printf "WireGuard" ;;
+        syslog)       printf "Persistent log" ;;
     esac
 }
 
@@ -28,6 +29,7 @@ svc_flag() {
         adguard)      printf "OPT_ADGUARD" ;;
         transmission) printf "OPT_TRANSMISSION" ;;
         wireguard)    printf "OPT_WIREGUARD" ;;
+        syslog)       printf "OPT_SYSLOG" ;;
     esac
 }
 
@@ -94,7 +96,15 @@ svc_installed_packages() {
     printf "%s" "${out# }"
 }
 
+_syslog_file() {
+    uci -q get system.@system[0].log_file
+}
+
 svc_is_installed() {
+    if [ "$1" = "syslog" ]; then
+        [ -n "$(_syslog_file)" ]
+        return
+    fi
     if [ "$1" = "portainer" ]; then
         cmd_exists docker || return 1
         docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx portainer
@@ -111,6 +121,9 @@ svc_is_running() {
             return ;;
         wireguard)
             [ -n "$(ip link show type wireguard 2>/dev/null)" ]
+            return ;;
+        syslog)
+            ps w 2>/dev/null | grep -q "[l]ogread -f -F"
             return ;;
     esac
     init=$(svc_init "$1")
@@ -286,6 +299,7 @@ _svc_configure() {
         wireguard)
             log_info "WireGuard tools installed. Create interfaces in LuCI: Network > Interfaces."
             ;;
+        syslog)       configure_syslog ;;
     esac
 }
 
@@ -293,8 +307,9 @@ _svc_configure() {
 
 # Usage: svc_remove <name> <backup|purge>
 svc_remove() {
-    local name="$1" mode="$2" label init pkgs bdir="" wg
+    local name="$1" mode="$2" label init pkgs bdir="" wg logf=""
     label=$(svc_label "$name")
+    [ "$name" = "syslog" ] && logf=$(_syslog_file)
 
     svc_is_installed "$name" || { log_info "${label} is not installed."; return 0; }
 
@@ -327,6 +342,8 @@ svc_remove() {
     printf "  Packages:      %s\n" "${pkgs:-none}"
     [ -n "$(svc_configs "$name")" ] && printf "  Config/state:  %s\n" "$(svc_configs "$name")"
     [ "$name" = "portainer" ] && printf "  Container:     portainer (volume portainer_data)\n"
+    [ "$name" = "syslog" ] && printf "  Settings:      system log_file / log_size (log goes back to RAM only)\n"
+    [ -n "$logf" ] && printf "  User data:     %s (kept unless you confirm separately)\n" "$logf"
     if [ "$mode" = "backup" ]; then
         printf "  Mode:          ${C_GREEN}remove, keep a backup${C_RESET} (restore later with: services.sh restore)\n"
     else
@@ -351,6 +368,7 @@ svc_remove() {
     if [ "$name" = "portainer" ]; then
         docker rm -f portainer >> "$LOG_FILE" 2>&1 && log_info "Container portainer removed."
     fi
+    [ "$name" = "syslog" ] && unconfigure_syslog
 
     # 3. Packages (apk also drops dependencies nothing else needs).
     if [ -n "$pkgs" ]; then
@@ -372,6 +390,7 @@ svc_remove() {
             log_info "Portainer volume and image removed."
         fi
         _svc_purge_userdata "$name"
+        [ -n "$logf" ] && _svc_purge_logfile "$logf"
     fi
 
     # 5. Bookkeeping.
@@ -409,6 +428,13 @@ CREATED="$(date '+%Y-%m-%d %H:%M:%S')"
 TOOL_VERSION="${TOOL_VERSION}"
 PACKAGES="${pkgs}"
 EOF
+    if [ "$name" = "syslog" ]; then
+        cat >> "${dir}/meta" <<EOF
+LOG_FILE_SETTING="$(_syslog_file)"
+LOG_SIZE_SETTING="$(uci -q get system.@system[0].log_size)"
+LOG_BUFFER_SETTING="$(uci -q get system.@system[0].log_buffer_size)"
+EOF
+    fi
     log_ok "Backup written to ${dir}."
 }
 
@@ -427,6 +453,21 @@ _svc_purge_userdata() {
         rm -rf "$path" && log_ok "${path} deleted."
     else
         log_info "Kept ${path}."
+    fi
+}
+
+# Only the log file and its rotated copy are deleted, never the directory
+# tree, because log_file can point anywhere.
+_svc_purge_logfile() {
+    local f="$1" size
+    [ -f "$f" ] || [ -f "${f}.old" ] || return 0
+    size=$(du -ch "$f" "${f}.old" 2>/dev/null | tail -1 | cut -f1)
+    if _confirm_typed syslog "Also delete ${f} and ${f}.old (${size})? This cannot be undone."; then
+        rm -f "$f" "${f}.old"
+        rmdir "$(dirname "$f")" 2>/dev/null
+        log_ok "Log files deleted."
+    else
+        log_info "Kept ${f}."
     fi
 }
 
@@ -458,6 +499,7 @@ svc_backup_by_number() {
 
 svc_restore() {
     local dir="${1%/}" SERVICE="" PACKAGES="" CREATED="" label init user f
+    local LOG_FILE_SETTING="" LOG_SIZE_SETTING="" LOG_BUFFER_SETTING=""
     [ -f "${dir}/meta" ] || { log_error "Not a service backup: ${dir}"; return 1; }
     . "${dir}/meta"
     svc_is_known "$SERVICE" || { log_error "Unknown service in backup: ${SERVICE}"; return 1; }
@@ -500,6 +542,14 @@ svc_restore() {
     case "$SERVICE" in
         docker)    configure_docker ;;     # data_root + fw4, idempotent
         portainer) configure_portainer ;;  # reuses the kept portainer_data volume
+        syslog)
+            mkdir -p "$(dirname "$LOG_FILE_SETTING")"
+            uci set system.@system[0].log_file="$LOG_FILE_SETTING"
+            [ -n "$LOG_SIZE_SETTING" ] && uci set system.@system[0].log_size="$LOG_SIZE_SETTING"
+            [ -n "$LOG_BUFFER_SETTING" ] && uci set system.@system[0].log_buffer_size="$LOG_BUFFER_SETTING"
+            uci commit system
+            /etc/init.d/log reload >/dev/null 2>&1
+            ;;
         *)
             if [ -n "$init" ] && [ -x "/etc/init.d/${init}" ]; then
                 "/etc/init.d/${init}" enable >> "$LOG_FILE" 2>&1

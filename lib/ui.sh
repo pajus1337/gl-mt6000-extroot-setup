@@ -118,7 +118,7 @@ ask_partition_layout() {
 
 # Optional services selection menu.
 # Sets globals: OPT_SAMBA OPT_DOCKER OPT_PORTAINER OPT_ADGUARD
-#               OPT_TRANSMISSION OPT_WIREGUARD
+#               OPT_TRANSMISSION OPT_WIREGUARD OPT_SYSLOG
 ask_optional_services() {
     header "Optional Services"
     printf "Select services to install after reboot (packages land on extroot).\n\n"
@@ -136,6 +136,8 @@ ask_optional_services() {
     ask_yn "Transmission (torrent daemon + LuCI)"   "n" && OPT_TRANSMISSION=1 || OPT_TRANSMISSION=0
 
     ask_yn "WireGuard VPN (kernel module + tools)" "n" && OPT_WIREGUARD=1 || OPT_WIREGUARD=0
+
+    ask_yn "Persistent system log on the storage partition" "n" && OPT_SYSLOG=1 || OPT_SYSLOG=0
 }
 
 # Helper for print_service_summary - defined at top-level (ash limitation)
@@ -157,6 +159,7 @@ print_service_summary() {
     _print_svc "AdGuard Home" "$OPT_ADGUARD"
     _print_svc "Transmission" "$OPT_TRANSMISSION"
     _print_svc "WireGuard"    "$OPT_WIREGUARD"
+    _print_svc "Persistent log" "$OPT_SYSLOG"
     printf "\n"
 }
 

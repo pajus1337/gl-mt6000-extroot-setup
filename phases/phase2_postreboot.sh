@@ -60,7 +60,7 @@ run_phase2() {
     header "Step 6/6 - Optional Services"
 
     local any_service=0
-    for flag in OPT_SAMBA OPT_DOCKER OPT_ADGUARD OPT_TRANSMISSION OPT_WIREGUARD; do
+    for flag in OPT_SAMBA OPT_DOCKER OPT_ADGUARD OPT_TRANSMISSION OPT_WIREGUARD OPT_SYSLOG; do
         eval "val=\$$flag"
         [ "$val" = "1" ] && any_service=1 && break
     done
@@ -75,6 +75,7 @@ run_phase2() {
         [ "$OPT_DOCKER"       = "1" ] && configure_docker
         [ "$OPT_DOCKER"       = "1" ] && [ "$OPT_PORTAINER" = "1" ] && configure_portainer
         [ "$OPT_TRANSMISSION" = "1" ] && configure_transmission
+        [ "$OPT_SYSLOG"       = "1" ] && configure_syslog
         [ "$OPT_WIREGUARD"    = "1" ] && /etc/init.d/wireguard enable 2>/dev/null || true
         [ "$OPT_ADGUARD"      = "1" ] && /etc/init.d/adguardhome enable 2>/dev/null \
             && /etc/init.d/adguardhome start 2>/dev/null || true

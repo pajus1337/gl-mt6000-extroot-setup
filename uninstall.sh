@@ -7,6 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "${SCRIPT_DIR}/lib/common.sh"
 . "${SCRIPT_DIR}/lib/detect.sh"
 . "${SCRIPT_DIR}/lib/ui.sh"
+. "${SCRIPT_DIR}/lib/storage.sh"
 
 require_root
 
@@ -63,6 +64,16 @@ uci commit fstab 2>/dev/null && log_ok "fstab updated."
 # ── Deactivate swap ────────────────────────────────────────────────────────────
 log_step "Deactivating swap"
 swapoff -a 2>/dev/null && log_ok "Swap deactivated." || log_warn "swapoff failed (may not have been active)."
+
+# ── Persistent log ─────────────────────────────────────────────────────────────
+# logread keeps a log file on the storage partition open, which would block
+# the unmount below.
+case "$(uci -q get system.@system[0].log_file)" in
+    "${STORAGE_MOUNT_POINT}"/*)
+        log_step "Moving the system log back to RAM"
+        unconfigure_syslog
+        ;;
+esac
 
 # ── Unmount storage ────────────────────────────────────────────────────────────
 log_step "Unmounting storage"
